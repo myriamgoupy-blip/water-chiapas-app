@@ -5,6 +5,7 @@
 - Open-Meteo: ERA5 reanalysis (archive) and forecast models. Free, no key, non-commercial use.
 """
 import io
+import time
 from datetime import date, timedelta
 
 import numpy as np
@@ -173,19 +174,30 @@ def fetch_rain_normals(points, start="1991-01-01", end="2020-12-31", timeout=180
     """
     out = []
     for i, pt in enumerate(points):
-        p = {"latitude": f"{pt['lat']:.4f}", "longitude": f"{pt['lon']:.4f}", "timezone": TZ,
-             "start_date": start, "end_date": end, "daily": "precipitation_sum"}
-        r = requests.get(OPEN_METEO_ARCHIVE, params=p, headers=UA, timeout=timeout)
-        r.raise_for_status()
-        dd = pd.DataFrame(r.json()["daily"]).rename(columns={"time": "date"})
-        dd["date"] = pd.to_datetime(dd.date)
-        dd["mmdd"] = dd.date.dt.strftime("%m-%d")
-        clim = dd.groupby("mmdd").precipitation_sum.mean().reset_index(name="rain_normal_mm")
-        clim["MUN"] = pt["MUN"]
-        out.append(clim)
+        out.append(fetch_rain_normal_one(pt, start, end, timeout))
         if progress:
             progress((i + 1) / len(points))
     return pd.concat(out, ignore_index=True)
+
+
+def fetch_rain_normal_one(pt, start="1991-01-01", end="2020-12-31", timeout=180, tries=4, wait=20):
+    """Daily rain averages for one location. Open-Meteo counts 30 years as many calls, so a
+    'too many requests' (429) answer is likely on the free tier: wait and try again."""
+    p = {"latitude": f"{pt['lat']:.4f}", "longitude": f"{pt['lon']:.4f}", "timezone": TZ,
+         "start_date": start, "end_date": end, "daily": "precipitation_sum"}
+    for attempt in range(tries):
+        r = requests.get(OPEN_METEO_ARCHIVE, params=p, headers=UA, timeout=timeout)
+        if r.status_code == 429 and attempt < tries - 1:
+            time.sleep(wait * (attempt + 1))
+            continue
+        r.raise_for_status()
+        break
+    dd = pd.DataFrame(r.json()["daily"]).rename(columns={"time": "date"})
+    dd["date"] = pd.to_datetime(dd.date)
+    dd["mmdd"] = dd.date.dt.strftime("%m-%d")
+    clim = dd.groupby("mmdd").precipitation_sum.mean().reset_index(name="rain_normal_mm")
+    clim["MUN"] = pt["MUN"]
+    return clim
 
 
 def window_anomaly(recent, normals, days):

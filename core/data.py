@@ -197,8 +197,22 @@ def rain_normals():
 
 
 def build_rain_normals(progress=None):
-    nm = live.fetch_rain_normals(municipal_seats(), progress=progress)
+    """Download the averages one municipality at a time, keeping each one on disk, so that if
+    Open-Meteo stops answering halfway a second click only fetches the missing ones."""
     CACHE.mkdir(parents=True, exist_ok=True)
+    seats = municipal_seats()
+    done = []
+    for i, pt in enumerate(seats):
+        f = CACHE / f"rain_normal_{pt['MUN']}.csv"
+        if f.exists():
+            part = pd.read_csv(f, dtype={"mmdd": str})
+        else:
+            part = live.fetch_rain_normal_one(pt)
+            part.to_csv(f, index=False)
+        done.append(part)
+        if progress:
+            progress((i + 1) / len(seats))
+    nm = pd.concat(done, ignore_index=True)
     nm.to_csv(CACHE / NORMALS_FILE, index=False)
     return nm
 
