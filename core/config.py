@@ -43,8 +43,12 @@ DROUGHT_LABELS = {
     "None": "No drought", "D0": "Abnormally dry", "D1": "Moderate drought",
     "D2": "Severe drought", "D3": "Extreme drought", "D4": "Exceptional drought",
 }
-DROUGHT_COLOURS = {"None": "#e4e3de", "D0": "#f6e27f", "D1": "#f2b45a", "D2": "#eb6834",
-                   "D3": "#c0392b", "D4": "#6e1a12"}
+DROUGHT_LABELS_ES = {  # wording of the SMN Drought Monitor
+    "None": "Sin sequía", "D0": "Anormalmente seco", "D1": "Sequía moderada",
+    "D2": "Sequía severa", "D3": "Sequía extrema", "D4": "Sequía excepcional",
+}
+DROUGHT_COLOURS = {"None": "#DCE3EB", "D0": "#F5DE6E", "D1": "#F0AE4C", "D2": "#E2672F",
+                   "D3": "#B8312A", "D4": "#6E1A12"}
 
 LOCREPDA_URL = "https://sigagis.conagua.gob.mx/ArcGIS/rest/services/LocREPDA/MapServer"
 DROUGHT_URL = ("https://smn.conagua.gob.mx/tools/RESOURCES/Monitor%20de%20Sequia%20en%20Mexico/"

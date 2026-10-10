@@ -79,7 +79,7 @@ def thesis_points():
     return _prepare_points(pd.read_csv(f, dtype={"FOLIOREG": str}))
 
 
-@st.cache_data(ttl=24 * 3600, show_spinner="Pulling the current LOCREPDA register from CONAGUA…")
+@st.cache_data(ttl=24 * 3600, show_spinner=False)
 def live_points(_nonce=0):
     """Pull LOCREPDA now, run the same location check, and save a dated copy in data/cache/."""
     raw = live.fetch_locrepda()
@@ -103,38 +103,26 @@ def cached_live_points():
 
 
 def active_points():
-    """The concession points the app should use, and a label describing them.
+    """The concession points the app should use, and a key naming the source.
 
     Order of preference: the source chosen on the Data page (session state), else the thesis
-    snapshot, else a live copy already on disk. Returns (points or None, label).
+    snapshot, else a live copy already on disk. Returns (points or None, key) where key is
+    "thesis", "live:<time>", "upload:<file>" or "none" (see ui.source_label).
     """
     choice = st.session_state.get("points_source", "thesis")
     if choice == "alt" and st.session_state.get("alt_points") is not None:
         return st.session_state["alt_points"]
     tp = thesis_points()
     if tp is not None:
-        return tp, "LOCREPDA thesis snapshot (28 Sept 2026)"
+        return tp, "thesis"
     lp, stamp = cached_live_points()
     if lp is not None:
-        return lp, f"LOCREPDA live pull ({stamp})"
-    return None, "no concession points loaded"
+        return lp, f"live:{stamp}"
+    return None, "none"
 
 
-@st.cache_data(show_spinner=False)
-def placed_points(pts, add_missing_title=False):
-    if pts is None:
-        return None
-    return geo.place_volumes(pts, vol_by_key(), add_missing_title)
 
 
-@st.cache_data(show_spinner=False)
-def intensity_column(pts, radius_km=2, measure="buffer", per_capita=True, add_missing_title=False):
-    """Intensity for every locality. Falls back to the thesis 2 km values when no points are loaded."""
-    loc = localities()
-    if pts is None:
-        return loc["intensity_2km_thesis"]
-    placed = placed_points(pts, add_missing_title)
-    return geo.intensity(loc, placed, radius_km, measure, per_capita)
 
 
 @st.cache_data(show_spinner=False)
@@ -147,11 +135,9 @@ def drought_snapshot():
 @st.cache_data(ttl=12 * 3600, show_spinner=False)
 def _drought_auto():
     try:
-        d = live.fetch_drought_official()
-        return d, "CONAGUA–SMN Drought Monitor (downloaded now)"
+        return live.fetch_drought_official(), "official"
     except Exception:
-        d = drought_snapshot()
-        return d, f"Drought Monitor, bundled copy up to {d.date.max():%d %b %Y}"
+        return drought_snapshot(), "bundled"
 
 
 def drought():
@@ -161,7 +147,7 @@ def drought():
     """
     up = st.session_state.get("drought_upload")
     if up is not None:
-        return up, f"Drought Monitor, uploaded file up to {up.date.max():%d %b %Y}"
+        return up, "upload"
     return _drought_auto()
 
 
@@ -171,11 +157,6 @@ def sample(loc, dv="dep_water", min_pop=100):
     return d[d.POBTOT > min_pop].copy()
 
 
-def with_intensity(pts, radius_km=2, measure="buffer", per_capita=True, add_missing_title=False):
-    """The locality table with the chosen intensity measure in column 'intensity'."""
-    loc = localities().copy()
-    loc["intensity"] = intensity_column(pts, radius_km, measure, per_capita, add_missing_title).values
-    return loc
 
 
 def municipal_seats():

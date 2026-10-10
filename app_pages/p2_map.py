@@ -1,187 +1,191 @@
+import altair as alt
 import numpy as np
 import pandas as pd
-import pydeck as pdk
 import streamlit as st
 
-from core import data, geo, index, ui
-from core.config import DROUGHT_LABELS, MUNS, USE_COLOURS
+from core import data, engine, geo, index, maps, ui
+from core.config import MUNS
 
-ui.header("Explore", "Map and locality card",
-          "Each grey-to-blue dot is a census locality; coloured dots are registered water concessions. "
-          "Click a locality (or pick it from the list) to open its card.")
-pts, src = ui.sidebar_status()
+L = ui.L
+pts, pkey = data.active_points()
+loc = engine.table(pkey, pts)
+drought, _ = data.drought()
+latest = drought[drought.date == drought.date.max()].set_index("MUN").cat
 
-# ---------------------------------------------------------------- settings
-with st.sidebar:
-    st.markdown("**Map settings**")
-    colour_by = st.selectbox("Colour localities by", [
-        "Dwellings without piped water inside (%)", "Concession intensity (2 km)",
-        "Indigenous-language speakers (%)", "Priority index (default weights)", "Altitude (m)"])
-    radius = st.slider("Radius for the card (km)", 0.5, 5.0, 2.0, 0.5,
-                       help="Concessions within this distance are listed on the card. The thesis uses 2 km.")
-    show_pts = st.checkbox("Show concession points", True, disabled=pts is None)
-    show_flagged = st.checkbox("Also show points that failed the location check", False, disabled=pts is None)
-    muns = st.multiselect("Municipalities", list(MUNS), default=list(MUNS), format_func=ui.mun_name)
+ui.page_title(L("Agua concedida y hogares sin agua", "Water granted and homes without water"),
+              L("Cada columna azul es una concesión de agua: entre más alta, más volumen. Cada círculo es una "
+                "localidad: entre más intenso el magenta, más viviendas sin agua entubada. Toca una localidad "
+                "para ver su ficha.",
+                "Each blue column is a water concession: the taller, the more volume. Each circle is a locality: "
+                "the deeper the magenta, the more homes without piped water. Tap a locality to open its card."))
 
-loc = data.with_intensity(pts, 2)
-placed = data.placed_points(pts) if pts is not None else None
-drought, dsrc = data.drought()
-latest_d = drought[drought.date == drought.date.max()].set_index("MUN").cat
-
-# default priority index, for colouring and for the card
-idx_base = loc.dropna(subset=["dep_water", "dep_drain", "school", "indig", "intensity"])
-comp = index.components(idx_base, index.drought_pressure(drought))
-loc["priority"] = index.score(comp, index.DEFAULT_WEIGHTS).reindex(loc.index)
-loc["priority_rank"] = loc.priority.rank(ascending=False, method="min")
-
-# ---------------------------------------------------------------- selection (map click or list)
+# ---------------------------------------------------------------- selection from a map click
 ev = st.session_state.get("deckmap")
 try:
     objs = ev["selection"]["objects"].get("localities", []) if ev else []
 except (KeyError, TypeError, AttributeError):
     objs = []
-if objs:
+if objs and (objs[0].get("MUN"), objs[0].get("LOC")) != st.session_state.get("_last_click"):
     o = objs[0]
-    if (o.get("MUN"), o.get("LOC")) != st.session_state.get("_last_click"):
-        st.session_state["_last_click"] = (o.get("MUN"), o.get("LOC"))
-        st.session_state["card_mun"] = int(o["MUN"])
-        st.session_state[f"card_loc_{int(o['MUN'])}"] = int(o["LOC"])
+    st.session_state["_last_click"] = (o.get("MUN"), o.get("LOC"))
+    st.session_state["card_mun"] = int(o["MUN"])
+    st.session_state[f"card_loc_{int(o['MUN'])}"] = int(o["LOC"])
 
-view = loc[loc.MUN.isin(muns) & loc.lon.notna()].copy()
-
-c1, c2 = st.columns([1, 2])
-with c1:
+# ---------------------------------------------------------------- controls
+COLOUR = {
+    "dep_water": (L("Viviendas sin agua entubada dentro", "Homes without piped water inside"), "%"),
+    "indig": (L("Hablantes de lengua indígena", "Indigenous-language speakers"), "%"),
+    "priority": (L("Índice de prioridad", "Priority index"), ""),
+    "intensity": (L("Intensidad de concesiones (2 km)", "Concession intensity (2 km)"), ""),
+}
+with st.container(key="panel_map"):
+    c1, c2, c3 = st.columns([2, 3, 2])
+    view = loc[loc.lon.notna()]
     mun_opts = sorted(view.MUN.unique(), key=ui.mun_name)
-    if st.session_state.get("card_mun") not in mun_opts:
-        st.session_state["card_mun"] = 78 if 78 in mun_opts else mun_opts[0]
-    sel_mun = st.selectbox("Municipality", mun_opts, format_func=ui.mun_name, key="card_mun")
-with c2:
+    st.session_state.setdefault("card_mun", 23)
+    sel_mun = c1.selectbox(L("Municipio", "Municipality"), mun_opts, format_func=ui.mun_name, key="card_mun")
     opts = view[view.MUN == sel_mun].sort_values("POBTOT", ascending=False)
-    names = dict(zip(opts.LOC, opts.NOM_LOC + " (" + opts.POBTOT.map(ui.fmt_int) + " inhabitants)"))
+    names = dict(zip(opts.LOC, opts.NOM_LOC + L(" (", " (") + opts.POBTOT.map(ui.num) + L(" hab.)", " inhabitants)")))
     loc_key = f"card_loc_{sel_mun}"
     if st.session_state.get(loc_key) not in names:
         st.session_state[loc_key] = int(opts.LOC.iloc[0])
-    sel_loc = st.selectbox("Locality (largest first)", list(names), format_func=names.get, key=loc_key)
+    sel_loc = c2.selectbox(L("Localidad (busca por nombre)", "Locality (type to search)"), list(names),
+                           format_func=names.get, key=loc_key)
+    radius = c3.slider(L("Radio (km)", "Radius (km)"), 0.5, 5.0, 2.0, 0.5,
+                       help=L("Concesiones contadas alrededor de la localidad. La tesis usa 2 km.",
+                              "Concessions counted around the locality. The thesis uses 2 km."))
+    colour_by = st.pills(L("Colorear localidades por", "Colour localities by"), list(COLOUR), default="dep_water",
+                         format_func=lambda k: COLOUR[k][0], required=True, key="map_colour")
+    d2, d3, d4, _ = st.columns([1, 1.3, 1.8, 3])
+    three_d = d2.toggle("3D", True)
+    by_use = d3.toggle(L("Por uso", "By use"), False, disabled=pts is None)
+    flagged = d4.toggle(L("Puntos descartados", "Rejected points"), False, disabled=pts is None,
+                        help=L("Puntos cuya ubicación no pasó la revisión (municipio equivocado o a más de 10 km).",
+                               "Points whose location failed the check (wrong municipality or over 10 km away)."))
 
 row = loc[(loc.MUN == sel_mun) & (loc.LOC == sel_loc)].iloc[0]
 
-# ---------------------------------------------------------------- colours
-LO, HI = np.array([228, 227, 222]), np.array([13, 71, 161])
-col_map = {"Dwellings without piped water inside (%)": ("dep_water", 0, 100),
-           "Concession intensity (2 km)": ("intensity", 0, float(np.nanmax(loc.intensity)) if loc.intensity.notna().any() else 1),
-           "Indigenous-language speakers (%)": ("indig", 0, 100),
-           "Priority index (default weights)": ("priority", float(np.nanmin(loc.priority)), float(np.nanmax(loc.priority))),
-           "Altitude (m)": ("ALTITUD", float(np.nanmin(loc.ALTITUD)), float(np.nanmax(loc.ALTITUD)))}
-var, vmin, vmax = col_map[colour_by]
-t = ((view[var] - vmin) / (vmax - vmin if vmax > vmin else 1)).clip(0, 1)
-rgb = np.where(t.notna().values[:, None], LO + (HI - LO) * t.fillna(0).values[:, None], [200, 200, 200])
-view["r"], view["g"], view["b"] = rgb[:, 0].astype(int), rgb[:, 1].astype(int), rgb[:, 2].astype(int)
-view["a"] = np.where(view[var].isna(), 90, 215)
-view["size"] = np.sqrt(view.POBTOT.fillna(1).clip(lower=1)) * 6 + 120
-view["value_txt"] = view[var].map(lambda x: "masked" if x != x else f"{x:,.1f}")
-view["mun_name"] = view.MUN.map(MUNS)
+# ---------------------------------------------------------------- map
+if colour_by == "priority":
+    base = loc.dropna(subset=["dep_water", "dep_drain", "school", "indig", "intensity"])
+    loc["priority"] = index.score(index.components(base, index.drought_pressure(drought)), index.DEFAULT_WEIGHTS).reindex(loc.index)
+view = loc[loc.lon.notna()].copy()
+label, unit = COLOUR[colour_by]
+vmin, vmax = (0, 100) if unit == "%" else (float(view[colour_by].min()), float(view[colour_by].max()))
 view["t1"] = view.NOM_LOC
-view["t2"] = view.mun_name + " · " + view.POBTOT.map(ui.fmt_int) + " inhabitants"
-view["t3"] = colour_by + ": " + view.value_txt
-
-layers = [pdk.Layer("ScatterplotLayer", id="localities",
-                    data=view[["MUN", "LOC", "t1", "t2", "t3", "lon", "lat", "r", "g", "b", "a", "size"]],
-                    get_position="[lon, lat]", get_fill_color="[r, g, b, a]", get_radius="size",
-                    radius_min_pixels=2, radius_max_pixels=18, pickable=True, auto_highlight=True,
-                    stroked=True, get_line_color=[255, 255, 255], line_width_min_pixels=0.5)]
-if show_pts and placed is not None and not placed.empty:
-    pp = placed[placed.MUPIO.isin(muns)].copy()
-    pp["rgb"] = pp.use.map(lambda u: USE_COLOURS.get(u, USE_COLOURS["Other"]))
-    pp["rad"] = np.sqrt(pp.vol.clip(lower=1)) * 1.2 + 40
-    pp["t1"] = pp.TITULAR.fillna("").astype(str)
-    pp["t2"] = pp.use + " · " + pp.source.replace({"subterranea": "groundwater", "superficial": "surface water"})
-    pp["t3"] = pp.vol.map(lambda x: f"{x:,.0f} m³/yr")
-    layers.append(pdk.Layer("ScatterplotLayer", id="concessions",
-                            data=pp[["LONDEC", "LATDEC", "rgb", "rad", "t1", "t2", "t3"]],
-                            get_position="[LONDEC, LATDEC]", get_fill_color="rgb", get_radius="rad", opacity=0.75,
-                            radius_min_pixels=2, radius_max_pixels=25, pickable=True))
-if show_flagged and pts is not None:
-    bad = pts[(pts.flag != "ok") & pts.LONDEC.notna() & (pts.LONDEC != 0)].copy()
-    bad["t1"] = bad.TITULAR.fillna("").astype(str)
-    bad["t2"] = "Failed the location check: " + bad.flag.str.replace("_", " ")
-    bad["t3"] = "Registered in " + bad.MUPIO.map(lambda m: MUNS.get(int(m), "?") if m == m else "?")
-    layers.append(pdk.Layer("ScatterplotLayer", id="flagged", data=bad[["LONDEC", "LATDEC", "t1", "t2", "t3"]],
-                            get_position="[LONDEC, LATDEC]", get_fill_color=[235, 104, 52, 230], get_radius=250,
-                            radius_min_pixels=3, pickable=True))
-layers.append(pdk.Layer("ScatterplotLayer", id="ring", data=pd.DataFrame([{"lon": row.lon, "lat": row.lat}]),
-                        get_position="[lon, lat]", get_radius=radius * 1000, filled=False, stroked=True,
-                        get_line_color=[235, 104, 52], line_width_min_pixels=2))
-
-deck = pdk.Deck(
-    layers=layers,
-    initial_view_state=pdk.ViewState(latitude=float(row.lat), longitude=float(row.lon), zoom=10.2 if radius <= 2 else 9.4),
-    map_style=None,
-    tooltip={"html": "<b>{t1}</b><br/>{t2}<br/>{t3}",
-             "style": {"fontSize": "12px"}},
-)
-left, right = st.columns([3, 2], gap="large")
-with left:
-    try:
-        st.pydeck_chart(deck, on_select="rerun", selection_mode="single-object", key="deckmap", height=560)
-    except TypeError:  # older Streamlit without map selection
-        st.pydeck_chart(deck, height=560)
-    st.caption(f"Colour: {colour_by.lower()} (light = low, dark blue = high; pale grey = masked by INEGI). "
-               "Concession colours: blue public-urban, green agricultural, orange industrial, purple services, grey other. "
-               f"Orange ring = {radius:g} km around the selected locality. Source of points: {src}.")
+view["t2"] = view.MUN.map(ui.mun_name) + ", " + view.POBTOT.map(ui.num) + L(" hab.", " inhabitants")
+view["t3"] = label + ": " + view[colour_by].map(lambda x: L("sin dato", "masked") if x != x else f"{x:,.0f}{unit}"
+                                                if unit else f"{x:,.1f}")
+layers = [maps.locality_layer(view, colour_by, vmin, vmax), maps.ring_layer(row.lon, row.lat, radius)]
+placed = None
+if pts is not None:
+    placed = engine.point_arrays(pkey, pts)["placed"].copy()
+    placed["t1"] = placed.TITULAR.fillna("").astype(str).str.title()
+    placed["t2"] = placed.use.map(ui.use_label) + ", " + placed.source.map(
+        {"subterranea": L("agua subterránea", "groundwater"), "superficial": L("agua superficial", "surface water")}).fillna("")
+    placed["t3"] = placed.vol.map(lambda x: f"{x:,.0f} m³/" + L("año", "yr"))
+    layers.append(maps.concession_layer(placed, by_use=by_use, radius_m=60 if radius <= 2 else 95, height=2.0))
+    if flagged:
+        bad = pts[(pts.flag != "ok") & pts.LONDEC.notna() & (pts.LONDEC != 0)].copy()
+        bad["t1"] = bad.TITULAR.fillna("").astype(str).str.title()
+        bad["t2"] = L("Ubicación descartada: ", "Location rejected: ") + bad.flag.str.replace("_", " ")
+        bad["t3"] = ""
+        import pydeck as pdk
+        layers.append(pdk.Layer("ScatterplotLayer", id="flagged", data=bad[["LONDEC", "LATDEC", "t1", "t2", "t3"]],
+                                get_position="[LONDEC, LATDEC]", get_fill_color=[212, 154, 30, 230], get_radius=160,
+                                radius_min_pixels=4, stroked=True, get_line_color=[255, 255, 255], pickable=True))
+zoom = 13.0 - np.log2(max(radius, 0.5))
+deck = maps.deck(layers, float(row.lat), float(row.lon), float(zoom), pitch=50 if three_d else 0,
+                 bearing=-15 if three_d else 0)
+st.pydeck_chart(deck, on_select="rerun", selection_mode="single-object", key="deckmap", height=560)
+lo, hi = ("0%", "100%") if unit == "%" else (f"{vmin:.0f}", f"{vmax:.0f}")
+st.markdown(maps.legend(label, lo, hi, radius, by_use), unsafe_allow_html=True)
 
 # ---------------------------------------------------------------- the card
 def pct(x):
-    return "masked" if x != x else f"{x:.0f}%"
+    return L("sin dato", "masked") if x != x else f"{x:.0f}%"
+
 
 near = geo.concessions_near(row.lon, row.lat, placed, radius) if placed is not None else None
 vol_near = float(near.vol.sum()) if near is not None else np.nan
-with right:
-    st.markdown(f"### {row.NOM_LOC}")
-    dcat = latest_d.get(int(row.MUN), "None")
-    st.markdown(f"{MUNS[int(row.MUN)]} · {ui.fmt_int(row.ALTITUD)} m above sea level · "
-                f"Drought now: **{DROUGHT_LABELS.get(dcat, dcat)}**")
-    st.markdown(ui.facts([
-        ("Inhabitants", ui.fmt_int(row.POBTOT)),
-        ("Homes without piped water inside", pct(row.dep_water)),
-        ("…without water even to the yard", pct(row.dep_water_lot)),
-        ("Homes without drainage", pct(row.dep_drain)),
-        ("Speak an Indigenous language (3+)", pct(row.indig)),
-        ("Average years of schooling", "masked" if row.school != row.school else f"{row.school:.1f}"),
-    ]), unsafe_allow_html=True)
-    if placed is not None:
-        per_res = vol_near / row.POBTOT if row.POBTOT else np.nan
-        st.markdown(ui.facts([
-            (f"Water concessioned within {radius:g} km", f"{vol_near:,.0f} m³/yr"),
-            ("Per resident", f"{per_res:,.0f} m³/yr" if per_res == per_res else "–"),
-            ("Points / titles", f"{len(near)} / {near.key.nunique()}"),
-        ]), unsafe_allow_html=True)
-    if row.intensity == row.intensity:
-        share_below = (loc.intensity < row.intensity).mean()
-        st.markdown(f"Concession intensity (2 km): **{row.intensity:.2f}**, higher than {share_below:.0%} of localities.")
-    if row.priority == row.priority:
-        st.markdown(f"Priority index (default weights): **{row.priority:.0f}/100**, rank {row.priority_rank:.0f} "
-                    f"of {int(loc.priority.notna().sum())} localities with complete data.")
+per_res = vol_near / row.POBTOT if row.POBTOT and vol_near == vol_near else np.nan
+cat = latest.get(int(row.MUN), "None")
 
-st.markdown(f"#### Concessions within {radius:g} km of {row.NOM_LOC}")
-if near is None:
-    st.info("Concession points are not loaded, so this list is empty. Go to *Data, methods and refresh* to load the "
-            "thesis snapshot or pull the current register from CONAGUA.")
-elif near.empty:
-    st.write("No located concession within this radius.")
-else:
-    rep = data.repda()
-    titles = rep.dropna(subset=["key"]).drop_duplicates("key").set_index("key")
-    tbl = pd.DataFrame({
-        "Holder": near.TITULAR, "Use": near.use,
-        "Volume at this point (m³/yr)": near.vol.round(0),
-        "Distance (km)": near.dist_km.round(2),
-        "Water": near.source.replace({"subterranea": "groundwater", "superficial": "surface"}),
-        "REPDA title": near.key.map(titles["Título"]),
-        "Registered": near.key.map(titles["Fecha de registro"]),
-    })
-    st.dataframe(tbl, hide_index=True, use_container_width=True,
-                 column_config={"Volume at this point (m³/yr)": st.column_config.NumberColumn(format="%d")})
-    top = near.groupby("TITULAR").vol.sum().sort_values(ascending=False)
-    st.caption(f"{len(near)} points, {near.key.nunique()} titles. Largest holder nearby: {top.index[0]} "
-               f"({top.iloc[0] / top.sum():.0%} of the volume within {radius:g} km). Volumes are current REPDA volumes, "
-               "split across a title's points.")
+st.write("")
+left, right = st.columns([5, 4], gap="large")
+with left:
+    st.markdown(f"## {row.NOM_LOC}")
+    st.markdown(f"{MUNS[int(row.MUN)]}, {ui.num(row.ALTITUD)} m {L('de altitud', 'above sea level')} &nbsp; "
+                f"{ui.dchip(cat, ui.dlabel(cat))}", unsafe_allow_html=True)
+    # one-sentence reading of the card
+    if row.dep_water != row.dep_water:
+        s = L("INEGI no publica los datos de vivienda de esta localidad porque es muy pequeña.",
+              "INEGI does not publish housing data for this locality because it is very small.")
+    else:
+        s = L(f"En {row.NOM_LOC}, {pct(row.dep_water)} de las viviendas no tiene agua entubada dentro.",
+              f"In {row.NOM_LOC}, {pct(row.dep_water)} of homes have no piped water inside.")
+    if near is not None:
+        if near.empty:
+            s += " " + L(f"No hay concesiones registradas a menos de {radius:g} km.",
+                         f"There is no registered concession within {radius:g} km.")
+        else:
+            top = near.assign(TITULAR=near.TITULAR.fillna("").astype(str).str.strip()).groupby("TITULAR").vol.sum().sort_values(ascending=False)
+            holder = str(top.index[0]).title()
+            s += " " + L(
+                f"A menos de {radius:g} km se concesionan {vol_near:,.0f} m³ de agua al año ({per_res:,.0f} m³ por "
+                f"habitante)" + (f"; el mayor titular es {holder} ({top.iloc[0] / top.sum():.0%})." if holder else "."),
+                f"Within {radius:g} km, {vol_near:,.0f} m³ of water a year are granted ({per_res:,.0f} m³ per "
+                f"resident)" + (f"; the largest holder is {holder} ({top.iloc[0] / top.sum():.0%})." if holder else "."))
+    st.markdown(f'<p class="sentence">{s}</p>', unsafe_allow_html=True)
+    st.markdown(ui.facts([
+        (L("Habitantes", "Inhabitants"), ui.num(row.POBTOT), ""),
+        (L("Sin agua entubada dentro", "No piped water inside"), pct(row.dep_water), "homes"),
+        (L("Sin agua ni en el patio", "No water even to the yard"), pct(row.dep_water_lot), "homes"),
+        (L("Sin drenaje", "No drainage"), pct(row.dep_drain), ""),
+        (L("Hablan lengua indígena", "Speak an Indigenous language"), pct(row.indig), ""),
+        (L("Años de escolaridad", "Years of schooling"), "–" if row.school != row.school else f"{row.school:.1f}", ""),
+    ]), unsafe_allow_html=True)
+    if row.intensity == row.intensity:
+        st.markdown('<p class="muted">' + L(
+            f"Intensidad de concesiones a 2 km: {row.intensity:.2f}, mayor que en {(loc.intensity < row.intensity).mean():.0%} de las localidades.",
+            f"Concession intensity at 2 km: {row.intensity:.2f}, higher than in {(loc.intensity < row.intensity).mean():.0%} of localities.")
+            + '</p>', unsafe_allow_html=True)
+
+with right:
+    st.markdown(f"#### {L('Agua concesionada a menos de', 'Water granted within')} {radius:g} km")
+    if near is None:
+        st.info(L("Los puntos de concesión no están cargados. Ve a la página Datos para cargarlos.",
+                  "Concession points are not loaded. Go to the Data page to load them."))
+    elif near.empty:
+        st.markdown(f'<div class="big water">0 m³</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="big water">{vol_near:,.0f} m³</div><p class="muted">'
+                    + L(f"al año, en {len(near)} puntos de {near.key.nunique()} títulos",
+                        f"per year, at {len(near)} points of {near.key.nunique()} titles") + '</p>',
+                    unsafe_allow_html=True)
+        by_holder = near.groupby("TITULAR").agg(vol=("vol", "sum"), dist=("dist_km", "min")).reset_index()
+        by_holder["name"] = by_holder.TITULAR.astype(str).str.title().str.slice(0, 38)
+        by_holder = by_holder.sort_values("vol", ascending=False).head(8)
+        ch = alt.Chart(by_holder).mark_bar(cornerRadiusEnd=5, height=18, color=ui.WATER).encode(
+            y=alt.Y("name:N", sort=list(by_holder.name), title=None, axis=alt.Axis(labelLimit=230, labelColor=ui.INK)),
+            x=alt.X("vol:Q", title="m³/" + L("año", "yr"), axis=alt.Axis(format="~s")),
+            tooltip=[alt.Tooltip("TITULAR:N", title=""), alt.Tooltip("vol:Q", format=",.0f", title="m³"),
+                     alt.Tooltip("dist:Q", format=".2f", title="km")])
+        ui.chart(ch, height=max(120, 30 * len(by_holder)))
+
+if near is not None and not near.empty:
+    with st.expander(L(f"Todas las concesiones a menos de {radius:g} km", f"All concessions within {radius:g} km")):
+        rep = data.repda()
+        titles = rep.dropna(subset=["key"]).drop_duplicates("key").set_index("key")
+        st.dataframe(pd.DataFrame({
+            L("Titular", "Holder"): near.TITULAR.astype(str).str.title(),
+            L("Uso", "Use"): near.use.map(ui.use_label),
+            L("Volumen (m³/año)", "Volume (m³/yr)"): near.vol.round(0),
+            L("Distancia (km)", "Distance (km)"): near.dist_km.round(2),
+            L("Fuente", "Source"): near.source.map({"subterranea": L("subterránea", "groundwater"),
+                                                     "superficial": L("superficial", "surface")}),
+            L("Título REPDA", "REPDA title"): near.key.map(titles["Título"]),
+            L("Registro", "Registered"): near.key.map(titles["Fecha de registro"]),
+        }), hide_index=True, column_config={L("Volumen (m³/año)", "Volume (m³/yr)"): st.column_config.NumberColumn(format="%d")})
+
+st.caption(L("Puntos de concesión: ", "Concession points: ") + ui.source_label(pkey) + ".")

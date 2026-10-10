@@ -1,9 +1,21 @@
-# When Water Flows to the Few: interactive companion
+# Ojo de Agua: interactive companion to *When Water Flows to the Few*
 
-A Streamlit app that goes with the MSc thesis *When Water Flows to the Few* (ESCP Business School, 2026). It covers water concessions and household water access in the nine municipalities around the San Cristóbal de las Casas aquifer (Chiapas, Mexico).
+A Streamlit app that goes with the MSc thesis *When Water Flows to the Few* (ESCP Business School, 2026). It covers water concessions, household water access and drought in the nine municipalities around the San Cristóbal de las Casas aquifer (Chiapas, Mexico).
+
+The app opens in Spanish, with English one click away (ES / EN at the top). To open it in English by default, change `default="ES"` to `default="EN"` in `app.py`.
 
 | Page | What the user can do |
 |---|---|
+| Inicio / Home | See who holds the water, the drought status today, and the thesis findings in three sentences |
+| Mapa / Map | Explore a 3D map: blue columns are concessions (height = volume), magenta circles are localities (deeper = more homes without piped water). Tap any locality to open its card |
+| Modelo / Model | Re-estimate the thesis model instantly with another radius, sample, outcome or test, and see how β1 changes across every radius from 0.5 to 10 km |
+| Prioridades / Priorities | Set six weights, rank the localities on a 3D map, and test how stable the top 20 is under 500 random weightings |
+| Sequía y lluvia / Drought & rain | Check the official drought status per municipality, its history since 2003, rain against the 1991–2020 normal, soil moisture and the 7-day forecast |
+| Datos / Data | See the sources and definitions, re-query CONAGUA's concession register, and compare it with the thesis snapshot |
+
+The model is computed with NumPy in milliseconds, so every control answers instantly. `tests/check_engine.py` shows that it gives exactly the thesis numbers (statsmodels, Notebook 4).
+
+---|---|
 | Overview | See the headline numbers, the drought status today and the thesis finding in one paragraph |
 | Map and locality card | Click any of the 985 census localities to see its households, the concessions within a chosen radius and who holds them |
 | Model playground | Re-run the thesis model with another radius, sample, outcome or error type, and check whether the result holds |
@@ -26,7 +38,7 @@ Optional: run `python scripts/build_rain_normals.py` once and commit `data/rain_
 
 1. Create a free account at github.com.
 2. Click **New repository**. Name it, for example, `water-chiapas-app`, set it to **Public**, and create it.
-3. Click **uploading an existing file**. Drag in everything inside this folder (`app.py`, `requirements.txt`, `README.md`, and the folders `core`, `app_pages`, `data`, `scripts`, `.streamlit`). Then click **Commit changes**.
+3. Click **uploading an existing file**. Drag in everything inside this folder (`app.py`, `requirements.txt`, `README.md`, and the folders `core`, `app_pages`, `data`, `scripts`, `static`, `tests`, `.streamlit`). Then click **Commit changes**.
    - The `.streamlit` folder is hidden on a Mac. Press Cmd + Shift + . in Finder to show it.
 4. Go to **share.streamlit.io** and sign in with GitHub.
 5. Click **Create app**, then **Deploy a public app from GitHub**. Pick the repository, branch `main`, main file `app.py`, and choose a short URL such as `water-chiapas.streamlit.app`.
@@ -63,8 +75,9 @@ Before the defence, download `MunicipiosSequia.xlsx` from the SMN Drought Monito
 The code in `core/` repeats the thesis notebooks line for line:
 
 - `geo.py`: location check, REPDA–LOCREPDA matching on the number after "CHS", and intensity = log(1 + m³ per resident within the radius);
-- `model.py`: OLS with municipality fixed effects; HC1, Conley and restricted wild cluster bootstrap (Webb weights);
+- `fastols.py` and `engine.py`: OLS with municipality fixed effects in NumPy; HC1, Conley and restricted wild cluster bootstrap (Webb weights); distances precomputed once so the pages answer instantly;
 - `index.py`: priority index and rank-stability check;
+- `ui.py` and `maps.py`: colours, type and the 3D map layers. Fonts (Bricolage Grotesque, OFL licence) are served from `static/fonts`.
 - `live.py`: clients for LOCREPDA, the Drought Monitor and Open-Meteo. Each one fails gracefully: when a source is down, the page explains it and falls back to the bundled data.
 
 All model results are associations, not causal effects. Census figures date from 2020, so households may have gained or lost access since.
