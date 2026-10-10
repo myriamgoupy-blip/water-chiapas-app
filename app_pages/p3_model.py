@@ -40,7 +40,7 @@ with st.container(border=True):
         conley_cut = st.select_slider("Spatial correlation distance (km)", [5, 10, 20], value=10,
                                       help="Conley standard errors let errors be correlated between localities closer than this.")
         do_wild = st.toggle("Wild bootstrap", False,
-                            help="The most conservative test: nine municipalities as clusters, 999 resamples.")
+                            help="The most conservative test: nine municipalities as clusters, 9,999 resamples (as in Notebook 4).")
 
 if snap and min_pop < 100:
     st.warning("Without the concession points only the thesis sample (more than 100 inhabitants) is available.")
@@ -56,9 +56,9 @@ cse, cp, cV = model.conley(d, res, conley_cut, mname, dv)
 wild = {}
 if do_wild:
     with st.spinner("Resampling municipalities…"):
-        wild["int_c"] = model.wild_cluster_p(d, "int_c", mname, dv, B=999)
+        wild["int_c"] = model.wild_cluster_p(d, "int_c", mname, dv, B=9999)
         if mname == "M3":
-            wild["int_c:ind_c"] = model.wild_cluster_p(d, "int_c:ind_c", mname, dv, B=999)
+            wild["int_c:ind_c"] = model.wild_cluster_p(d, "int_c:ind_c", mname, dv, B=9999)
 
 is_thesis = radius == 2 and measure == "buffer" and per_capita and not add_title \
     and min_pop == 100 and dv == "dep_water" and mname == "M3"
@@ -112,9 +112,9 @@ tab = pd.DataFrame({
     f"p Conley {conley_cut} km": [cp[p] for p in rows],
 })
 if wild:
-    tab["p wild bootstrap"] = [wild.get(p, np.nan) for p in rows]
+    tab["p wild bootstrap"] = [f"{wild[p]:.3f}" if p in wild else "" for p in rows]
 st.dataframe(tab, hide_index=True, use_container_width=True,
-             column_config={c: st.column_config.NumberColumn(format="%.3f") for c in tab.columns[1:]})
+             column_config={c: st.column_config.NumberColumn(format="%.3f") for c in tab.columns[1:] if c != "p wild bootstrap"})
 st.caption(f"OLS with municipality fixed effects; n = {int(res.nobs)}; R² = {res.rsquared:.3f}. "
            "Intensity and Indigenous share are centred on their means. Controls: log population, years of schooling.")
 

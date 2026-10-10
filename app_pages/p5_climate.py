@@ -87,8 +87,13 @@ if normals is None:
             normals = data.build_rain_normals(progress=lambda f: bar_.progress(f))
             st.rerun()
         except Exception as e:  # noqa: BLE001
-            st.error(f"Open-Meteo could not be reached ({type(e).__name__}). Try again later.")
+            st.error(f"Open-Meteo stopped answering ({type(e).__name__}), most likely its free limit on "
+                     "large requests. The municipalities already downloaded are kept: wait a minute and "
+                     "click the button again to fetch the rest.")
 if normals is not None:
+    if not (data.DATA / data.NORMALS_FILE).exists():
+        st.download_button("Download the averages file (add it to data/ on GitHub to make it permanent)",
+                           normals.to_csv(index=False), data.NORMALS_FILE, "text/csv")
     try:
         recent = data.recent_rain()
         rows = []

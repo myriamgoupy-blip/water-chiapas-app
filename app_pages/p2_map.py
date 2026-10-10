@@ -45,7 +45,7 @@ if objs:
     if (o.get("MUN"), o.get("LOC")) != st.session_state.get("_last_click"):
         st.session_state["_last_click"] = (o.get("MUN"), o.get("LOC"))
         st.session_state["card_mun"] = int(o["MUN"])
-        st.session_state["card_loc"] = int(o["LOC"])
+        st.session_state[f"card_loc_{int(o['MUN'])}"] = int(o["LOC"])
 
 view = loc[loc.MUN.isin(muns) & loc.lon.notna()].copy()
 
@@ -58,9 +58,10 @@ with c1:
 with c2:
     opts = view[view.MUN == sel_mun].sort_values("POBTOT", ascending=False)
     names = dict(zip(opts.LOC, opts.NOM_LOC + " (" + opts.POBTOT.map(ui.fmt_int) + " inhabitants)"))
-    if st.session_state.get("card_loc") not in names:
-        st.session_state["card_loc"] = int(opts.LOC.iloc[0])
-    sel_loc = st.selectbox("Locality (largest first)", list(names), format_func=names.get, key="card_loc")
+    loc_key = f"card_loc_{sel_mun}"
+    if st.session_state.get(loc_key) not in names:
+        st.session_state[loc_key] = int(opts.LOC.iloc[0])
+    sel_loc = st.selectbox("Locality (largest first)", list(names), format_func=names.get, key=loc_key)
 
 row = loc[(loc.MUN == sel_mun) & (loc.LOC == sel_loc)].iloc[0]
 
