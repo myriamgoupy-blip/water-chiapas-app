@@ -28,7 +28,7 @@ with st.container(key="brandbar", horizontal=True, vertical_alignment="center"):
         '<circle cx="13" cy="17" r="3.2" fill="#fff"/><circle cx="13" cy="17" r="1.5" fill="#C2185B"/></svg>'
         f'Ojo de Agua<small>{L("Agua y concesiones en Chiapas", "Water and concessions in Chiapas")}</small></div>',
         unsafe_allow_html=True)
-    st.segmented_control("Idioma / Language", ["ES", "EN"], default="ES", required=True,
+    st.segmented_control("Idioma / Language", ["ES", "EN"], default="EN", required=True,
                          key="lang_choice", label_visibility="collapsed", width="content")
 
 nav.run()
