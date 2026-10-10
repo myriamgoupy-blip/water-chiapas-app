@@ -1,0 +1,213 @@
+"""Loading the bundled data and building the locality table the whole app works from."""
+from datetime import datetime, timezone
+
+import numpy as np
+import pandas as pd
+import streamlit as st
+
+from . import geo, live
+from .config import CACHE, DATA, MUNS, USE_EN
+
+CENSUS_NUM = ["ALTITUD", "POBTOT", "VIVPARH_CV", "TVIVHAB", "VPH_AGUADV", "VPH_AGUAFV", "VPH_DRENAJ",
+              "VPH_EXCSA", "VPH_C_ELEC", "P_3YMAS", "P3YM_HLI", "GRAPROES", "P15YM_AN"]
+
+
+@st.cache_data(show_spinner=False)
+def localities():
+    """All 985 census localities of the nine municipalities, with the thesis variables.
+
+    INEGI masks small localities with '*'; those become missing and drop out of the model sample.
+    """
+    loc = pd.read_csv(DATA / "iter2020_localities.csv")
+    for c in CENSUS_NUM:
+        loc[c] = pd.to_numeric(loc[c], errors="coerce")
+    loc["municipality"] = loc.MUN.map(MUNS)
+    loc["dep_water"] = 100 * (1 - loc.VPH_AGUADV / loc.VIVPARH_CV)
+    loc["dep_water_lot"] = 100 * (1 - (loc.VPH_AGUADV + loc.VPH_AGUAFV) / loc.VIVPARH_CV)
+    loc["dep_drain"] = 100 * (1 - loc.VPH_DRENAJ / loc.VIVPARH_CV)
+    loc["dep_toilet"] = 100 * (1 - loc.VPH_EXCSA / loc.VIVPARH_CV)
+    loc["indig"] = 100 * loc.P3YM_HLI / loc.P_3YMAS
+    loc["log_pop"] = np.log(loc.POBTOT)
+    loc["school"] = loc.GRAPROES
+    loc = loc.replace([np.inf, -np.inf], np.nan)   # not clipped: keeps the thesis numbers exact
+    thesis = pd.read_csv(DATA / "thesis_intensity_2km.csv")
+    loc = loc.merge(thesis, on=["MUN", "LOC"], how="left")
+    return loc.reset_index(drop=True)
+
+
+@st.cache_data(show_spinner=False)
+def repda():
+    """The 1,061 REPDA titles of the nine municipalities (965 with an extraction volume)."""
+    r = pd.read_csv(DATA / "repda_titles.csv", dtype=str)
+    r["MUN"] = r.MUN.astype(int)
+    r["municipality"] = r.MUN.map(MUNS)
+    r["vol"] = pd.to_numeric(r["Volumen de extracción de aguas nacionales (m3/año)"].str.replace(" ", "", regex=False),
+                             errors="coerce")
+    r["key"] = r["Título"].map(geo.title_key)
+    r["use"] = r["Uso"].str.strip().map(USE_EN).fillna("Other")
+    r["year"] = pd.to_datetime(r["Fecha de registro"], dayfirst=True, errors="coerce").dt.year
+    return r
+
+
+def vol_by_key():
+    r = repda()
+    return r[r.vol > 0].dropna(subset=["key"]).groupby("key").vol.sum()
+
+
+def _prepare_points(pts):
+    pts = pts.copy()
+    pts["FOLIOREG"] = pts.FOLIOREG.astype(str)
+    pts["key"] = pts.FOLIOREG.map(geo.title_key)
+    pts["VOL_CONS"] = pd.to_numeric(pts.VOL_CONS, errors="coerce").fillna(0)
+    pts["MUPIO"] = pd.to_numeric(pts.MUPIO, errors="coerce")
+    uso_col = next((c for c in ["uso", "USO_SUB", "USO_SUP", "USO"] if c in pts.columns), None)
+    pts["uso"] = pts[uso_col].astype(str).str.strip().str.upper() if uso_col else ""
+    if "TITULAR" not in pts.columns:
+        pts["TITULAR"] = ""
+    if "source" not in pts.columns:
+        pts["source"] = ""
+    pts["use"] = pts.uso.map(USE_EN).fillna("Other")
+    return pts
+
+
+@st.cache_data(show_spinner=False)
+def thesis_points():
+    """LOCREPDA points saved on 28 Sept 2026 (data/locrepda_points_qc.csv), or None if not bundled."""
+    f = DATA / "locrepda_points_qc.csv"
+    if not f.exists():
+        return None
+    return _prepare_points(pd.read_csv(f, dtype={"FOLIOREG": str}))
+
+
+@st.cache_data(ttl=24 * 3600, show_spinner="Pulling the current LOCREPDA register from CONAGUA…")
+def live_points(_nonce=0):
+    """Pull LOCREPDA now, run the same location check, and save a dated copy in data/cache/."""
+    raw = live.fetch_locrepda()
+    pts = geo.location_check(_prepare_points(raw), localities())
+    pulled = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    try:
+        CACHE.mkdir(parents=True, exist_ok=True)
+        pts.to_csv(CACHE / "locrepda_points_live.csv", index=False)
+    except OSError:
+        pass
+    return pts, pulled
+
+
+def cached_live_points():
+    """A previously pulled live copy on disk, if any (survives app reruns, not redeploys)."""
+    f = CACHE / "locrepda_points_live.csv"
+    if not f.exists():
+        return None, None
+    stamp = datetime.fromtimestamp(f.stat().st_mtime, timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    return _prepare_points(pd.read_csv(f, dtype={"FOLIOREG": str})), stamp
+
+
+def active_points():
+    """The concession points the app should use, and a label describing them.
+
+    Order of preference: the source chosen on the Data page (session state), else the thesis
+    snapshot, else a live copy already on disk. Returns (points or None, label).
+    """
+    choice = st.session_state.get("points_source", "thesis")
+    if choice == "alt" and st.session_state.get("alt_points") is not None:
+        return st.session_state["alt_points"]
+    tp = thesis_points()
+    if tp is not None:
+        return tp, "LOCREPDA thesis snapshot (28 Sept 2026)"
+    lp, stamp = cached_live_points()
+    if lp is not None:
+        return lp, f"LOCREPDA live pull ({stamp})"
+    return None, "no concession points loaded"
+
+
+@st.cache_data(show_spinner=False)
+def placed_points(pts, add_missing_title=False):
+    if pts is None:
+        return None
+    return geo.place_volumes(pts, vol_by_key(), add_missing_title)
+
+
+@st.cache_data(show_spinner=False)
+def intensity_column(pts, radius_km=2, measure="buffer", per_capita=True, add_missing_title=False):
+    """Intensity for every locality. Falls back to the thesis 2 km values when no points are loaded."""
+    loc = localities()
+    if pts is None:
+        return loc["intensity_2km_thesis"]
+    placed = placed_points(pts, add_missing_title)
+    return geo.intensity(loc, placed, radius_km, measure, per_capita)
+
+
+@st.cache_data(show_spinner=False)
+def drought_snapshot():
+    d = pd.read_csv(DATA / "drought_monitor_snapshot.csv", parse_dates=["date"])
+    d["cat"] = d["cat"].fillna("None")
+    return d
+
+
+@st.cache_data(ttl=12 * 3600, show_spinner=False)
+def _drought_auto():
+    try:
+        d = live.fetch_drought_official()
+        return d, "CONAGUA–SMN Drought Monitor (downloaded now)"
+    except Exception:
+        d = drought_snapshot()
+        return d, f"Drought Monitor, bundled copy up to {d.date.max():%d %b %Y}"
+
+
+def drought():
+    """Drought monitor history for the nine municipalities.
+
+    Uses, in order: a file uploaded on the Drought page, the official file if reachable, the bundled copy.
+    """
+    up = st.session_state.get("drought_upload")
+    if up is not None:
+        return up, f"Drought Monitor, uploaded file up to {up.date.max():%d %b %Y}"
+    return _drought_auto()
+
+
+def sample(loc, dv="dep_water", min_pop=100):
+    """Model sample: complete cases with more than `min_pop` inhabitants (Notebook 4)."""
+    d = loc.dropna(subset=[dv, "intensity", "indig", "log_pop", "school"])
+    return d[d.POBTOT > min_pop].copy()
+
+
+def with_intensity(pts, radius_km=2, measure="buffer", per_capita=True, add_missing_title=False):
+    """The locality table with the chosen intensity measure in column 'intensity'."""
+    loc = localities().copy()
+    loc["intensity"] = intensity_column(pts, radius_km, measure, per_capita, add_missing_title).values
+    return loc
+
+
+def municipal_seats():
+    """Coordinates of the nine municipal seats (locality 1), used for weather requests."""
+    loc = localities()
+    s = loc[loc.LOC == 1][["MUN", "lat", "lon", "ALTITUD"]]
+    return [dict(MUN=int(r.MUN), lat=float(r.lat), lon=float(r.lon)) for r in s.itertuples()]
+
+
+NORMALS_FILE = "rain_normals_1991_2020.csv"
+
+
+def rain_normals():
+    """Daily rain climatology 1991–2020 per municipal seat: bundled file, else a copy built at run time."""
+    for f in [DATA / NORMALS_FILE, CACHE / NORMALS_FILE]:
+        if f.exists():
+            return pd.read_csv(f, dtype={"mmdd": str})
+    return None
+
+
+def build_rain_normals(progress=None):
+    nm = live.fetch_rain_normals(municipal_seats(), progress=progress)
+    CACHE.mkdir(parents=True, exist_ok=True)
+    nm.to_csv(CACHE / NORMALS_FILE, index=False)
+    return nm
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def recent_rain():
+    return live.fetch_recent_rain(municipal_seats())
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def forecast():
+    return live.fetch_forecast(municipal_seats())
