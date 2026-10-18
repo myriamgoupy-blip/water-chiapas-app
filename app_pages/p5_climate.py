@@ -43,9 +43,9 @@ for m in order:
     c = latest.get(m, "None")
     weeks = streak[m] * 15 / 30
     tiles.append(
-        f'<div style="background:rgba(16,27,49,.7);border:1px solid {ui.LINE};border-left:6px solid {DROUGHT_COLOURS[c]};'
+        f'<div style="background:color-mix(in srgb, currentColor 3.5%, transparent);border:1px solid color-mix(in srgb, currentColor 13%, transparent);border-left:6px solid {DROUGHT_COLOURS[c]};'
         f'border-radius:12px;padding:.6rem .8rem">'
-        f'<div style="font-weight:700;color:{ui.NIGHT}">{MUNS[m]}</div>'
+        f'<div style="font-weight:700">{MUNS[m]}</div>'
         f'<div style="margin:.25rem 0">{ui.dchip(c, ui.dlabel(c))}</div>'
         f'<div class="muted">' + (L(f"Seco desde hace {weeks:.1f} meses", f"Dry for {weeks:.1f} months") if streak[m] else
                                    L("Sin sequía", "No drought")) + '</div></div>')
@@ -66,7 +66,7 @@ def history():
     labels = {k: ui.dlabel(k) for k in DROUGHT_LEVELS}
     heat = alt.Chart(h).mark_rect(cornerRadius=2).encode(
         x=alt.X("date:T", title=None, axis=ui.date_axis("month")), x2="end:T",
-        y=alt.Y("municipality:N", title=None, sort=[MUN_SHORT[m] for m in order], axis=alt.Axis(labelColor=ui.INK, labelFontSize=12)),
+        y=alt.Y("municipality:N", title=None, sort=[MUN_SHORT[m] for m in order], axis=alt.Axis(labelFontSize=12)),
         color=alt.Color("cat:N", title=None, scale=alt.Scale(domain=DROUGHT_LEVELS, range=[DROUGHT_COLOURS[k] for k in DROUGHT_LEVELS]),
                         legend=alt.Legend(orient="top", labelExpr="{" + ",".join(f"'{k}':'{v}'" for k, v in labels.items()) + "}[datum.label]")),
         tooltip=[alt.Tooltip("municipality:N", title=""), alt.Tooltip("date:T", format="%d/%m/%Y", title=L("fecha", "date")),
@@ -122,7 +122,7 @@ def rain():
         c1, c2 = st.columns([3, 2], gap="large")
         with c1:
             base = alt.Chart(a90).encode(y=alt.Y("m:N", title=None, sort=[MUN_SHORT[m] for m in order],
-                                                 axis=alt.Axis(labelColor=ui.INK, labelFontSize=12)))
+                                                 axis=alt.Axis(labelFontSize=12)))
             obs = base.mark_bar(height=16, cornerRadiusEnd=5).encode(
                 x=alt.X("observed_mm:Q", title=L("Lluvia de los últimos 90 días (mm)", "Rain over the last 90 days (mm)")),
                 color=alt.condition(alt.datum.pct_of_normal < 100, alt.value(DROUGHT_COLOURS["D1"]), alt.value(ui.WATER)),
@@ -136,9 +136,9 @@ def rain():
                 y=alt.Y("m:N", sort=[MUN_SHORT[m] for m in order]), x="max_mm:Q", text="pct_txt:N")
             ui.chart(obs + tick + lab, height=300)
             st.markdown('<p class="muted">' + L(
-                f"Barra: lluvia observada ({a90['from'].min():%d/%m} al {a90['to'].max():%d/%m}). Raya oscura: lo normal en esas fechas (1991–2020). "
+                f"Barra: lluvia observada ({a90['from'].min():%d/%m} al {a90['to'].max():%d/%m}). Raya gris: lo normal en esas fechas (1991–2020). "
                 "Naranja: por debajo de lo normal.",
-                f"Bar: observed rain ({a90['from'].min():%d/%m} to {a90['to'].max():%d/%m}). Dark tick: normal for those dates (1991–2020). "
+                f"Bar: observed rain ({a90['from'].min():%d/%m} to {a90['to'].max():%d/%m}). Grey tick: normal for those dates (1991–2020). "
                 "Orange: below normal.") + " " + L(
                 "Las cantidades vienen del modelo ERA5, que tiende a sobrestimar la lluvia en zonas de montaña: compara el porcentaje, no los milímetros.",
                 "Amounts come from the ERA5 model, which tends to overestimate rain in mountains: compare the percentage, not the millimetres.")
@@ -192,10 +192,10 @@ def rain():
         sm = alt.Chart(ss).mark_line(strokeWidth=3, interpolate="monotone").encode(
             x=alt.X("date:T", title=None, axis=ui.date_axis("day")),
             y=alt.Y("v:Q", title="m³/m³", scale=alt.Scale(zero=False)),
-            color=alt.Color("layer:N", title=L("Profundidad", "Depth"), scale=alt.Scale(range=[ui.PINE, ui.NIGHT])),
+            color=alt.Color("layer:N", title=L("Profundidad", "Depth"), scale=alt.Scale(range=[ui.PINE, ui.WATER])),
             tooltip=[alt.Tooltip("date:T", format="%d/%m"), "layer:N", alt.Tooltip("v:Q", format=".3f")])
-        sm = sm + alt.Chart(ss[ss.date == ss.date.max()]).mark_circle(size=70, stroke="#070D1A", strokeWidth=1.5).encode(
-            x="date:T", y="v:Q", color=alt.Color("layer:N", legend=None, scale=alt.Scale(range=[ui.PINE, ui.NIGHT])))
+        sm = sm + alt.Chart(ss[ss.date == ss.date.max()]).mark_circle(size=70, stroke="white", strokeWidth=1.5).encode(
+            x="date:T", y="v:Q", color=alt.Color("layer:N", legend=None, scale=alt.Scale(range=[ui.PINE, ui.WATER])))
         ui.chart(sm, height=240)
         st.markdown('<p class="muted">' + L("Modelada, no medida (Open-Meteo).", "Modelled, not measured (Open-Meteo).") + '</p>',
                     unsafe_allow_html=True)
