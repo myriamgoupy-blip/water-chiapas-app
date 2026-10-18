@@ -6,10 +6,8 @@ from core.config import MUNS
 
 L = ui.L
 ui.page_title(L("Los datos detrás de la app", "The data behind the app"),
-              L("De dónde sale cada cifra, cómo se construyen las variables y un botón para volver a consultar "
-                "el registro de concesiones de CONAGUA hoy mismo.",
-                "Where every number comes from, how the variables are built, and a button to query CONAGUA's "
-                "concession register again today."))
+              L("De dónde sale cada cifra, cómo se construyen las variables y qué registros conviene revisar.",
+                "Where every number comes from, how the variables are built, and which register entries need review."))
 
 drought, dkey = data.drought()
 pts, pkey = data.active_points()
@@ -35,52 +33,13 @@ rows = [
 st.markdown(f"| {L('Fuente', 'Source')} | {L('Qué aporta', 'What it provides')} | {L('Versión en uso', 'Version in use')} |\n|---|---|---|\n"
             + "\n".join(f"| {a} | {b} | {c} |" for a, b, c in rows))
 
-# ================================================================ refresh LOCREPDA
-st.subheader(L("Concesiones: la versión de la tesis o la de hoy", "Concessions: the thesis version or today's"))
-st.markdown(L("La tesis usa LOCREPDA tal como se descargó el 28 de septiembre de 2026. Puedes consultarlo de nuevo: "
-              "se aplica la misma revisión de ubicaciones y toda la app pasa a usar la versión que elijas.",
-              "The thesis uses LOCREPDA as downloaded on 28 September 2026. You can query it again: the same location "
-              "check is applied and the whole app switches to the version you choose."))
-tp = data.thesis_points()
-c1, c2 = st.columns(2, gap="large")
-with c1:
-    if st.button(L("Consultar CONAGUA ahora", "Query CONAGUA now"), type="primary", icon=":material/refresh:"):
-        st.session_state["_nonce"] = st.session_state.get("_nonce", 0) + 1
-        try:
-            with st.spinner(L("Consultando el servidor de CONAGUA…", "Querying CONAGUA's server…")):
-                live_pts, stamp = data.live_points(st.session_state["_nonce"])
-            st.session_state["alt_points"] = (live_pts, f"live:{stamp}")
-            st.session_state["points_source"] = "alt"
-            st.rerun()
-        except Exception as e:  # noqa: BLE001
-            st.error(L(f"El servidor de CONAGUA no respondió ({type(e).__name__}). Suele ser lento: inténtalo en unos minutos.",
-                       f"CONAGUA's server did not answer ({type(e).__name__}). It is often slow: try again in a few minutes."))
-with c2:
-    up = st.file_uploader(L("…o carga un archivo de puntos (locrepda_points_qc.csv)", "…or upload a points file (locrepda_points_qc.csv)"),
-                          type=["csv"])
-    if up is not None:
-        try:
-            p = data._prepare_points(pd.read_csv(up, dtype={"FOLIOREG": str}))
-            if "flag" not in p.columns:
-                p = geo.location_check(p, data.localities())
-            st.session_state["alt_points"] = (p, f"upload:{up.name}")
-            st.session_state["points_source"] = "alt"
-        except Exception as e:  # noqa: BLE001
-            st.error(L(f"No se pudo leer el archivo: {e}", f"Could not read the file: {e}"))
-
-options = (["thesis"] if tp is not None else []) + (["alt"] if st.session_state.get("alt_points") is not None else [])
-if options:
-    cur = st.session_state.get("points_source", "thesis")
-    choice = st.segmented_control(L("Versión en uso", "Version in use"), options, default=cur if cur in options else options[0],
-                                  required=True, format_func=lambda o: ui.source_label("thesis" if o == "thesis"
-                                                                                       else st.session_state["alt_points"][1]))
-    if choice != cur:
-        st.session_state["points_source"] = choice
-        st.rerun()
-else:
-    st.warning(L("Aún no hay puntos de concesión cargados. Consulta CONAGUA o carga el archivo de la tesis.",
-                 "No concession points are loaded yet. Query CONAGUA or upload the thesis file."))
-
+# ================================================================ concession points in use
+st.subheader(L("Puntos de concesión en uso", "Concession points in use"))
+st.markdown(L("La app lee LOCREPDA en el servidor de CONAGUA cada día y aplica la misma revisión de ubicaciones que la tesis. "
+              "Si el servidor no responde, usa la copia incluida (28 de septiembre de 2026).",
+              "The app reads LOCREPDA from CONAGUA's server every day and applies the same location check as the thesis. "
+              "If the server does not answer, it uses the bundled copy (28 September 2026)."))
+st.caption(L("Fuente actual: ", "Current source: ") + ui.source_label(pkey) + ".")
 pts, pkey = data.active_points()
 if pts is not None:
     rep = data.repda()
@@ -92,18 +51,6 @@ if pts is not None:
     k2.metric(L("Ubicación válida", "Valid location"), f"{(pts.flag == 'ok').mean():.0%}")
     k3.metric(L("Títulos ubicados", "Titles located"), f"{located.sum()} / {len(ext)}")
     k4.metric(L("Volumen ubicado", "Volume located"), f"{placed.vol.sum() / ext.vol.sum():.0%}")
-    if tp is not None and st.session_state.get("alt_points") is not None:
-        alt_pts, akey = st.session_state["alt_points"]
-        a, b = set(tp.FOLIOREG), set(alt_pts.FOLIOREG)
-        res = {}
-        for name, (p, k) in {"t": (tp, "thesis"), "a": (alt_pts, akey)}.items():
-            d, fit, _ = engine.run_model(k, p)
-            res[name] = fit.params["int_c"]
-        st.markdown("**" + L("Qué cambió desde la tesis", "What changed since the thesis") + "**  \n" + L(
-            f"{len(b - a)} registros nuevos, {len(a - b)} retirados, {len(a & b)} sin cambio. "
-            f"Modelo de la tesis a 2 km: β1 = {res['t']:.3f} (tesis) frente a {res['a']:.3f} (otra versión).",
-            f"{len(b - a)} new records, {len(a - b)} removed, {len(a & b)} unchanged. "
-            f"Thesis model at 2 km: β1 = {res['t']:.3f} (thesis) vs {res['a']:.3f} (other version)."))
 
 # ================================================================ titles to review
 if pts is not None:

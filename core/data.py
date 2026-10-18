@@ -72,7 +72,7 @@ def _prepare_points(pts):
 
 @st.cache_data(show_spinner=False)
 def thesis_points():
-    """LOCREPDA points saved on 28 Sept 2026 (data/locrepda_points_qc.csv), or None if not bundled."""
+    """Bundled LOCREPDA copy (retrieved 28 Sept 2026), used only when CONAGUA's server does not answer."""
     f = DATA / "locrepda_points_qc.csv"
     if not f.exists():
         return None
@@ -80,7 +80,7 @@ def thesis_points():
 
 
 @st.cache_data(ttl=24 * 3600, show_spinner=False)
-def live_points(_nonce=0):
+def live_points():
     """Pull LOCREPDA now, run the same location check, and save a dated copy in data/cache/."""
     raw = live.fetch_locrepda()
     pts = geo.location_check(_prepare_points(raw), localities())
@@ -102,27 +102,39 @@ def cached_live_points():
     return _prepare_points(pd.read_csv(f, dtype={"FOLIOREG": str})), stamp
 
 
-def active_points():
-    """The concession points the app should use, and a key naming the source.
+@st.cache_resource(show_spinner=False)
+def _live_failures():
+    return {}
 
-    Order of preference: the source chosen on the Data page (session state), else the thesis
-    snapshot, else a live copy already on disk. Returns (points or None, key) where key is
-    "thesis", "live:<time>", "upload:<file>" or "none" (see ui.source_label).
+
+def active_points():
+    """The concession points the app uses, always the live version when CONAGUA answers.
+
+    Order: LOCREPDA pulled live (cached 24 h), else the last live copy on disk, else the copy bundled
+    with the app (retrieved 28 Sept 2026). A failed pull is not retried for 30 minutes, so a slow
+    CONAGUA server does not slow every page. Returns (points or None, key): "live:<time>" or "bundled".
     """
-    choice = st.session_state.get("points_source", "thesis")
-    if choice == "alt" and st.session_state.get("alt_points") is not None:
-        return st.session_state["alt_points"]
-    tp = thesis_points()
-    if tp is not None:
-        return tp, "thesis"
+    fails = _live_failures()
+    if datetime.now(timezone.utc).timestamp() - fails.get("t", 0) > 1800:
+        try:
+            with st.spinner(L_("Leyendo LOCREPDA en el servidor de CONAGUA…", "Reading LOCREPDA from CONAGUA's server…")):
+                pts, stamp = live_points()
+            if pts is not None and len(pts):
+                return pts, f"live:{stamp}"
+        except Exception:  # noqa: BLE001
+            fails["t"] = datetime.now(timezone.utc).timestamp()
     lp, stamp = cached_live_points()
     if lp is not None:
         return lp, f"live:{stamp}"
+    tp = thesis_points()
+    if tp is not None:
+        return tp, "bundled"
     return None, "none"
 
 
-
-
+def L_(es, en):
+    from core.ui import L
+    return L(es, en)
 
 
 @st.cache_data(show_spinner=False)
@@ -143,11 +155,8 @@ def _drought_auto():
 def drought():
     """Drought monitor history for the nine municipalities.
 
-    Uses, in order: a file uploaded on the Drought page, the official file if reachable, the bundled copy.
+    Uses the official file if reachable (refreshed every 12 hours), else the bundled copy.
     """
-    up = st.session_state.get("drought_upload")
-    if up is not None:
-        return up, "upload"
     return _drought_auto()
 
 

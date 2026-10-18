@@ -5,7 +5,7 @@ import pydeck as pdk
 import streamlit as st
 
 from core import data, engine, index, maps, ui
-from core.config import MUNS, THESIS_DROUGHT_DATE
+from core.config import MUNS
 
 L = ui.L
 pts, pkey = data.active_points()
@@ -67,23 +67,13 @@ def ranking():
             o1, o2 = st.columns(2)
             min_pop = o1.select_slider(L("Habitantes mín.", "Min. inhabitants"), [0, 50, 100, 250, 500], value=100, key="i_minpop")
             o2.button(L("Pesos iniciales", "Default weights"), on_click=reset, width="stretch")
-            dsrc = st.segmented_control(
-                L("Datos de sequía", "Drought data"), ["latest", "thesis"], default="latest", required=True, key="i_dsrc",
-                format_func=lambda o: L("Últimos publicados", "Latest published") if o == "latest"
-                else L("Tesis (15/09/2026)", "Thesis (15/09/2026)"),
-                help=L("«Tesis» usa el Monitor de Sequía hasta el 15 de septiembre de 2026, como en la tabla 7.2 de la tesis.",
-                       "'Thesis' uses the Drought Monitor up to 15 September 2026, as in Table 7.2 of the thesis."))
     if tot == 0:
         st.warning(L("Todos los pesos están en cero. Sube al menos uno.", "All weights are zero. Raise at least one."))
         return
 
     d = loc.dropna(subset=["dep_water", "dep_drain", "school", "indig", "intensity"])
     d = d[d.POBTOT > min_pop].copy()
-    if dsrc == "thesis":
-        snap = data.drought_snapshot()
-        dsel = snap[snap.date <= pd.Timestamp(THESIS_DROUGHT_DATE)]
-    else:
-        dsel = drought
+    dsel = drought
     comp = index.components(d, index.drought_pressure(dsel))
     d["vol2"] = vol2.reindex(d.index)
     d["index"] = index.score(comp, weights)

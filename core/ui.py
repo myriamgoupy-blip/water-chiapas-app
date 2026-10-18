@@ -62,12 +62,11 @@ def dchip(cat, text=None):
 
 
 def source_label(key):
-    if key == "thesis":
-        return L("instantánea de la tesis (28 sep 2026)", "thesis snapshot (28 Sep 2026)")
     if key.startswith("live:"):
-        return L(f"consulta en vivo a CONAGUA ({key[5:]})", f"live pull from CONAGUA ({key[5:]})")
-    if key.startswith("upload:"):
-        return L(f"archivo cargado ({key[7:]})", f"uploaded file ({key[7:]})")
+        return L(f"LOCREPDA en vivo desde CONAGUA (leído el {key[5:]})", f"LOCREPDA live from CONAGUA (read {key[5:]})")
+    if key == "bundled":
+        return L("copia incluida en la app (28 sep 2026): el servidor de CONAGUA no respondió",
+                 "copy bundled with the app (28 Sep 2026): CONAGUA's server did not answer")
     return L("sin puntos de concesión cargados", "no concession points loaded")
 
 

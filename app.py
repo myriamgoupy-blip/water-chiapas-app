@@ -4,7 +4,7 @@ Run locally with:  streamlit run app.py
 """
 import streamlit as st
 
-st.set_page_config(page_title="Ojo de Agua · Chiapas", page_icon="", layout="wide")
+st.set_page_config(page_title="Ojo de Agua · Chiapas", page_icon="💧", layout="wide")
 
 from core import ui  # noqa: E402  (after set_page_config)
 from core.config import DEFAULT_LANG  # noqa: E402

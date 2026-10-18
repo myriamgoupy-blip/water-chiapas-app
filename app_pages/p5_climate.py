@@ -44,15 +44,6 @@ st.markdown('<div style="display:grid;grid-template-columns:repeat(auto-fill,min
             + "".join(tiles) + '</div>', unsafe_allow_html=True)
 st.caption(ui.drought_source(dkey, last))
 
-with st.expander(L("¿Tienes un archivo más reciente del Monitor de Sequía?", "Have a newer Drought Monitor file?")):
-    up = st.file_uploader("MunicipiosSequia.xlsx", type=["xlsx"])
-    if up is not None:
-        try:
-            st.session_state["drought_upload"] = live.parse_drought_xlsx(up.getvalue())
-            st.rerun()
-        except Exception as e:  # noqa: BLE001
-            st.error(L(f"No se pudo leer el archivo: {e}", f"Could not read the file: {e}"))
-
 
 @st.fragment
 def history():

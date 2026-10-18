@@ -16,15 +16,14 @@ MUN_SHORT = {78: "San Cristóbal", 111: "Zinacantán", 23: "Chamula", 93: "Tenej
              94: "Teopisca", 7: "Amatenango", 24: "Chanal", 19: "Comitán"}
 
 # Thesis main specification (Notebook 4, run of 10 Oct 2026). Used to show a "matches the thesis" badge.
-THESIS_DROUGHT_DATE = "2026-09-15"   # last Drought Monitor assessment used in the thesis (Table 7.2)
 THESIS = dict(radius_km=2, min_pop=100, dv="dep_water", model="M3", n=538, beta1=-2.195)
 
 # Data snapshot dates shown in the interface
 SNAPSHOTS = {
     "REPDA": "September 2026 (public REPDA consultation, 9 municipal extracts)",
     "ITER": "Census 2020 (INEGI ITER, Chiapas)",
-    "LOCREPDA": "28 September 2026 (thesis snapshot)",
-    "Drought monitor": "bundled copy up to 15 September 2026",
+    "LOCREPDA": "live from CONAGUA (bundled fallback: 28 September 2026)",
+    "Drought monitor": "live from the SMN (bundled fallback up to 15 September 2026)",
 }
 
 # Palette (same as the thesis figures)

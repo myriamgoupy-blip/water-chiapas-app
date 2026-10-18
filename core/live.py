@@ -21,7 +21,7 @@ TZ = "America/Mexico_City"
 
 
 # ---------------------------------------------------------------- LOCREPDA
-def _arcgis(layer, params, timeout=60):
+def _arcgis(layer, params, timeout=25):
     # The CONAGUA server's certificate chain is incomplete, so certificate checks are disabled
     # for this host only (read-only public data).
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
