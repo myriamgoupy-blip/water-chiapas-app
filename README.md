@@ -4,6 +4,8 @@ A Streamlit app that goes with the MSc thesis *When Water Flows to the Few* (ESC
 
 The app opens in Spanish, with English one click away (ES / EN at the top). To open it in English by default, change `default="ES"` to `default="EN"` in `app.py`.
 
+The app has a light and a dark theme. It follows the visitor's system setting; anyone can switch with the three-dot menu at the top right (System / Light / Dark). Both themes are set in `.streamlit/config.toml`.
+
 | Page | What the user can do |
 |---|---|
 | Inicio / Home | Who holds the water, today's drought, the model's findings and the two groups of localities to act on |
@@ -69,12 +71,12 @@ streamlit run app.py
 | Source | Use | Version bundled | Live? |
 |---|---|---|---|
 | REPDA, Public Register of Water Rights (CONAGUA) | Titles, holders, uses, volumes | Sept 2026 extracts for the 9 municipalities | No (REPDA has no open API) |
-| LOCREPDA, CONAGUA ArcGIS server | Coordinates of concession points | Thesis snapshot, 28 Sept 2026 (`data/locrepda_points_qc.csv`) | Yes: *Data* page button |
+| LOCREPDA, CONAGUA ArcGIS server | Coordinates of concession points | Thesis snapshot, 28 Sept 2026 (`data/locrepda_points_qc.csv`) | Yes: read daily, bundled copy as fallback |
 | ITER 2020, INEGI census | Household water, drainage, language, schooling, locality coordinates | Chiapas file trimmed to the 9 municipalities | No (census) |
-| Drought Monitor, CONAGUA–SMN (`MunicipiosSequia.xlsx`) | Drought category every 15 days since 2003 | Copy up to 15 Sept 2026, from a public GitHub mirror of the SMN file | Yes: tries the official SMN file first, and accepts an uploaded file |
+| Drought Monitor, CONAGUA–SMN (`MunicipiosSequia.xlsx`) | Drought category every 15 days since 2003 | Copy up to 15 Sept 2026, from a public GitHub mirror of the SMN file | Yes: tries the official SMN file every 12 hours, bundled copy as fallback |
 | Open-Meteo (ERA5 reanalysis and forecast models) | Rain against the 1991–2020 normal, soil moisture, 7-day forecast | None | Yes |
 
-Before the defence, download `MunicipiosSequia.xlsx` from the SMN Drought Monitor page and upload it on the *Drought and rain* page, or replace `data/drought_monitor_snapshot.csv`. This confirms that the bundled values match the official file.
+If the official SMN site is down on the day of the defence, the app shows the bundled copy and says so. To refresh that copy, replace `data/drought_monitor_snapshot.csv` with the latest `MunicipiosSequia.xlsx` values.
 
 ## How the numbers are built
 
@@ -83,7 +85,7 @@ The code in `core/` repeats the thesis notebooks line for line:
 - `geo.py`: location check, REPDA–LOCREPDA matching on the number after "CHS", and intensity = log(1 + m³ per resident within the radius);
 - `fastols.py` and `engine.py`: OLS with municipality fixed effects in NumPy; HC1, Conley and restricted wild cluster bootstrap (Webb weights); distances precomputed once so the pages answer instantly;
 - `index.py`: priority index and rank-stability check;
-- `ui.py` and `maps.py`: colours, type and the 3D map layers. Fonts (Bricolage Grotesque, OFL licence) are served from `static/fonts`.
+- `ui.py` and `maps.py`: colours (for both light and dark themes), type and the 3D map layers. Fonts (Bricolage Grotesque, OFL licence) are served from `static/fonts`.
 - `live.py`: clients for LOCREPDA, the Drought Monitor and Open-Meteo. Each one fails gracefully: when a source is down, the page explains it and falls back to the bundled data.
 
 All model results are associations, not causal effects. Census figures date from 2020, so households may have gained or lost access since.
