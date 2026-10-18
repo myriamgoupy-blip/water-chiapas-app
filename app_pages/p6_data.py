@@ -7,7 +7,8 @@ from core.config import MUNS
 L = ui.L
 ui.page_title(L("Los datos detrás de la app", "The data behind the app"),
               L("De dónde sale cada cifra, cómo se construyen las variables y qué registros conviene revisar.",
-                "Where every number comes from, how the variables are built, and which register entries need review."))
+                "Where every number comes from, how the variables are built, and which register entries need review."),
+              kicker=L("Transparencia", "Transparency"))
 
 drought, dkey = data.drought()
 pts, pkey = data.active_points()

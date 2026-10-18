@@ -4,7 +4,7 @@ import pandas as pd
 import pydeck as pdk
 import streamlit as st
 
-from core import data, engine, index, maps, ui
+from core import data, engine, index, insights, maps, ui
 from core.config import MUNS
 
 L = ui.L
@@ -32,10 +32,20 @@ NAMES = {
 }
 
 ui.page_title(L("¿Dónde actuar primero?", "Where to act first?"),
-              L("Tú decides qué pesa más. El índice ordena las localidades al instante y luego comprueba si ese orden "
-                "depende demasiado de tus pesos exactos.",
-                "You decide what matters most. The index ranks localities instantly, then checks whether that order "
-                "depends too much on your exact weights."))
+              L("Un índice de prioridad que tú controlas: combina seis criterios medidos en cada localidad y ordena las "
+                "538 localidades al instante.",
+                "A priority index you control: it combines six criteria measured in every locality and ranks the "
+                "538 localities instantly."),
+              kicker=L("Índice de prioridad", "Priority index"))
+ui.guide([
+    (L("Elige qué pesa", "Choose what matters"), L("Mueve los seis pesos; la barra de la derecha muestra su reparto.",
+                                                   "Move the six weights; the bar on the right shows how they add up.")),
+    (L("Mira el resultado", "See the result"), L("Mapa: columnas más altas y claras = más prioridad. Lista: el orden, con el grupo de cada localidad.",
+                                                 "Map: taller, brighter columns = higher priority. List: the order, with each locality's group.")),
+    (L("Comprueba su solidez", "Check how solid it is"), L("500 versiones con pesos al azar dicen qué prioridades no dependen de tu elección.",
+                                                           "500 versions with random weights show which priorities do not depend on your choice.")),
+])
+k_seg = insights.current()[0].segment
 
 for k, v in index.DEFAULT_WEIGHTS.items():
     st.session_state.setdefault(f"w_{k}", int(round(v * 100)))
@@ -58,7 +68,7 @@ def ranking():
         with wv:
             if tot > 0:
                 w = pd.DataFrame({"c": [NAMES[k][0] for k in weights], "w": [v / tot for v in weights.values()]})
-                ch = alt.Chart(w).mark_bar(cornerRadiusEnd=5, height=16, color=ui.NIGHT).encode(
+                ch = alt.Chart(w).mark_bar(cornerRadiusEnd=5, height=16, color=ui.WATER).encode(
                     y=alt.Y("c:N", sort=list(w.c), title=None, axis=alt.Axis(labelLimit=200, labelColor=ui.INK)),
                     x=alt.X("w:Q", title=L("Peso en el índice", "Weight in the index"), axis=alt.Axis(format="%"),
                             scale=alt.Scale(domain=[0, max(0.5, w.w.max())])))
@@ -95,6 +105,9 @@ def ranking():
         st.markdown('<div class="legend"><span><span class="ramp"></span>&nbsp; '
                     + L("Prioridad: baja → alta (altura y color)", "Priority: low → high (height and colour)")
                     + '</span></div>', unsafe_allow_html=True)
+        ui.explain(L("Cada columna es una localidad. Las más altas y claras son las que tus pesos ponen primero; pasa el cursor para "
+                     "ver su lugar en la lista.",
+                     "Each column is a locality. The tallest, brightest ones are those your weights put first; hover to see their rank."))
     with tab_list:
         show = d.head(50)
         st.dataframe(pd.DataFrame({
@@ -102,6 +115,9 @@ def ranking():
             L("Habitantes", "Inhabitants"): show.POBTOT, L("Índice", "Index"): show["index"],
             L("Sin agua %", "No water %"): show.dep_water.round(0), L("Sin drenaje %", "No drainage %"): show.dep_drain.round(0),
             L("Agua concedida a 2 km (m³/año)", "Water granted within 2 km (m³/yr)"): show.vol2.round(0),
+            L("Grupo (modelo)", "Group (model)"): k_seg.reindex(show.index).map(
+                {"outside": L("Fuera del sistema", "Outside the system"), "nearby": L("Agua cerca que no llega", "Water nearby, not reaching"),
+                 "connected": L("Mayormente conectada", "Mostly connected")}).fillna("–"),
             L("Indígena %", "Indigenous %"): show.indig.round(0)}),
             hide_index=True, height=480, column_config={
                 L("Índice", "Index"): st.column_config.ProgressColumn(format="%.0f", min_value=0, max_value=100, width="medium"),
@@ -112,6 +128,20 @@ def ranking():
                            pd.concat([d[["rank", "MUN", "LOC", "NOM_LOC", "POBTOT", "index", "dep_water", "dep_drain", "vol2"]].rename(columns={"vol2": "vol_2km_m3"}),
                                       comp.loc[d.index].add_prefix("component_")], axis=1).to_csv(index=False),
                            "priority_index.csv", "text/csv")
+
+    t20 = d.head(20)
+    sg = k_seg.reindex(t20.index).value_counts()
+    munc = t20.MUN.map(ui.mun_short).value_counts()
+    st.markdown(ui.insight(L(
+        f"Con tus pesos, las 20 primeras localidades tienen de {int(t20.POBTOT.min())} a {int(t20.POBTOT.max()):,} habitantes y "
+        f"{t20.dep_water.mean():.0f}% de viviendas sin agua en promedio. {int(sg.get('outside', 0))} están fuera del sistema formal "
+        f"(necesitan fuente y red) y {int(sg.get('nearby', 0))} tienen agua concedida cerca que no llega (necesitan conexión). "
+        f"Municipio con más prioridades: {munc.index[0]} ({int(munc.iloc[0])}).",
+        f"With your weights, the top 20 localities have {int(t20.POBTOT.min())} to {int(t20.POBTOT.max()):,} inhabitants and "
+        f"{t20.dep_water.mean():.0f}% of homes without water on average. {int(sg.get('outside', 0))} are outside the formal system "
+        f"(they need a source and a network) and {int(sg.get('nearby', 0))} have water granted nearby that does not arrive (they "
+        f"need a connection). Municipality with the most priorities: {munc.index[0]} ({int(munc.iloc[0])})."),
+        L("Resumen de la lista", "List summary")), unsafe_allow_html=True)
 
     # ------------------------------------------------------------ stability
     st.markdown(f"#### {L('¿Qué tan estable es este orden?', 'How stable is this order?')}")
@@ -130,16 +160,17 @@ def ranking():
     rng = base.mark_bar(height=9, cornerRadius=5, color=ui.WATER_SOFT).encode(
         x=alt.X("rank_p5:Q", title=L("Lugar en las 500 versiones (rango del 90%; punto = mediana)",
                                      "Rank across the 500 versions (90% range; dot = median)")), x2="rank_p95:Q")
-    dot = base.mark_circle(size=90, stroke="white", strokeWidth=1.5).encode(
+    dot = base.mark_circle(size=90, stroke="#070D1A", strokeWidth=1.5).encode(
         x="median_rank:Q",
         color=alt.condition(alt.datum[f"top{top_n}_share"] >= 0.8, alt.value(ui.HOMES), alt.value(ui.MUTED)),
         tooltip=[alt.Tooltip("NOM_LOC:N", title=""), alt.Tooltip("median_rank:Q", title=L("mediana", "median")),
                  alt.Tooltip(f"top{top_n}_share:Q", format=".0%", title=f"top {top_n}")])
     cutl = alt.Chart(pd.DataFrame({"x": [top_n + 0.5]})).mark_rule(color=ui.HOMES, strokeDash=[4, 3]).encode(x="x:Q")
     ui.chart(rng + cutl + dot, height=24 * top_n)
-    st.markdown('<p class="muted">' + L("Magenta: prioridad sólida (top 20 en 80% o más de las versiones). Gris: depende de los pesos.",
-                                        "Magenta: solid priority (top 20 in 80% or more of versions). Grey: depends on the weights.")
-                + '</p>', unsafe_allow_html=True)
+    ui.explain(L("Cada barra muestra entre qué lugares se mueve la localidad en 500 versiones del índice con pesos al azar (el punto es "
+                 "la mediana). Magenta: prioridad sólida, en el top 20 en al menos 80% de las versiones. Gris: depende de los pesos.",
+                 "Each bar shows the range of ranks a locality takes across 500 versions of the index with random weights (the dot is "
+                 "the median). Magenta: solid priority, in the top 20 in at least 80% of versions. Grey: depends on the weights."))
 
 
 ranking()

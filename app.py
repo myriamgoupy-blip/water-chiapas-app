@@ -14,6 +14,7 @@ L = ui.L
 
 pages = [
     st.Page("app_pages/p1_overview.py", title=L("Inicio", "Home"), icon=":material/water_drop:", default=True),
+    st.Page("app_pages/p7_ask.py", url_path="ask", title=L("Pregunta", "Ask"), icon=":material/auto_awesome:"),
     st.Page("app_pages/p2_map.py", url_path="map", title=L("Mapa", "Map"), icon=":material/map:"),
     st.Page("app_pages/p3_model.py", url_path="model", title=L("Modelo", "Model"), icon=":material/tune:"),
     st.Page("app_pages/p4_index.py", url_path="index", title=L("Prioridades", "Priorities"), icon=":material/leaderboard:"),
@@ -24,9 +25,11 @@ nav = st.navigation(pages, position="top")
 
 with st.container(key="brandbar", horizontal=True, vertical_alignment="center"):
     st.markdown(
-        '<div class="brand"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">'
-        '<path d="M13 2 C13 2 4 12 4 17 a9 9 0 0 0 18 0 C22 12 13 2 13 2z" fill="#1f6fb2"/>'
-        '<circle cx="13" cy="17" r="3.2" fill="#fff"/><circle cx="13" cy="17" r="1.5" fill="#C2185B"/></svg>'
+        '<div class="brand"><svg width="28" height="28" viewBox="0 0 26 26" aria-hidden="true"><defs>'
+        '<linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38B6FF"/>'
+        '<stop offset="1" stop-color="#A78BFA"/></linearGradient></defs>'
+        '<path d="M13 2 C13 2 4 12 4 17 a9 9 0 0 0 18 0 C22 12 13 2 13 2z" fill="url(#g)"/>'
+        '<circle cx="13" cy="17" r="3.2" fill="#070D1A"/><circle cx="13" cy="17" r="1.5" fill="#FF4F93"/></svg>'
         f'Ojo de Agua<small>{L("Agua y concesiones en Chiapas", "Water and concessions in Chiapas")}</small></div>',
         unsafe_allow_html=True)
     st.segmented_control("Idioma / Language", ["ES", "EN"], default=DEFAULT_LANG, required=True,

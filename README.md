@@ -6,31 +6,37 @@ The app opens in Spanish, with English one click away (ES / EN at the top). To o
 
 | Page | What the user can do |
 |---|---|
-| Inicio / Home | See who holds the water, the drought status today, and the thesis findings in three sentences |
-| Mapa / Map | Explore a 3D map: blue columns are concessions (height = volume), magenta circles are localities (deeper = more homes without piped water). Tap any locality to open its card |
-| Modelo / Model | Re-estimate the thesis model instantly with another radius, sample, outcome or test, and see how β1 changes across every radius from 0.5 to 10 km |
-| Prioridades / Priorities | Set six weights, rank the localities on a 3D map, and test how stable the top 20 is under 500 random weightings |
-| Sequía y lluvia / Drought & rain | Check the official drought status per municipality, its history since 2003, rain against the 1991–2020 normal, soil moisture and the 7-day forecast |
-| Datos / Data | See the sources and definitions, re-query CONAGUA's concession register, and compare it with the thesis snapshot |
+| Inicio / Home | Who holds the water, today's drought, the model's findings and the two groups of localities to act on |
+| Pregunta / Ask | Ask questions in plain language. The assistant runs the app's own analyses and answers with their figures (Claude with an API key; built-in answers without one) |
+| Mapa / Map | 3D map of concessions and localities; open any locality's record, its group, what the model expected and the most similar localities |
+| Modelo / Model | Re-estimate the thesis model instantly, check the radius curve and see where the model is most surprised (residuals) |
+| Prioridades / Priorities | Set six weights, rank the 538 localities, see each locality's group and test the stability of the top 20 |
+| Sequía y lluvia / Drought & rain | Official drought status per municipality, its history since 2003, rain against normal and the 7-day forecast |
+| Datos / Data | Sources, definitions, limits and the list of register entries to review |
+
+The app always uses the latest data: it reads LOCREPDA from CONAGUA once a day and the Drought Monitor every 12 hours, and falls back on the copies in `data/` when a source does not answer.
+
+## Switching on the AI assistant (optional)
+
+The Ask page works without any key (built-in answers to common questions). To let Claude answer any question:
+
+1. Create an API key at console.anthropic.com (pay as you go; a question costs a few cents).
+2. In Streamlit Community Cloud, open the app → **Settings** → **Secrets**, and paste:
+   ```
+   ANTHROPIC_API_KEY = "sk-ant-..."
+   ANTHROPIC_MODEL = "claude-sonnet-5"
+   ```
+3. Save. The Ask page then shows "Claude connected".
+
+Claude never produces the numbers itself: it chooses which of the app's functions to call (look up a locality, rank localities, summarise municipalities, re-estimate the model, read the drought, check the register) and writes the answer from what they return.
 
 The model is computed with NumPy in milliseconds, so every control answers instantly. `tests/check_engine.py` shows that it gives exactly the thesis numbers (statsmodels, Notebook 4).
 
----|---|
-| Overview | See the headline numbers, the drought status today and the thesis finding in one paragraph |
-| Map and locality card | Click any of the 985 census localities to see its households, the concessions within a chosen radius and who holds them |
-| Model playground | Re-run the thesis model with another radius, sample, outcome or error type, and check whether the result holds |
-| Priority index | Set weights for six components, rank the localities, and test how stable the ranking is under 500 random weightings |
-| Drought and rain (live) | View CONAGUA's municipal drought monitor since 2003, rain against the 1991–2020 normal, soil moisture and the 7-day forecast |
-| Data, methods and refresh | Check the sources and definitions, pull the current LOCREPDA register from CONAGUA, and compare it with the thesis snapshot |
-
 ---
 
-## 1. Before publishing: add the thesis points file
+## 1. The bundled data
 
-Copy **`locrepda_points_qc.csv`** into the `data/` folder. The LOCREPDA_linkage notebook saved this file on 28 September 2026, and it is in your Drive folder `THESIS 2026/Colab Notebooks`.
-
-- **With it:** every page uses the exact thesis data. In the Model playground, the default settings show *"identical to the thesis"* (β1 = −2.195, n = 538).
-- **Without it:** the app still runs. The map has no concession dots, and the model can only use the thesis 2 km values. The *Data* page also lets anyone pull today's register or upload the file.
+`data/locrepda_points_qc.csv` is the LOCREPDA copy of 28 September 2026 used in the thesis. The app uses it only when CONAGUA's server does not answer; otherwise it reads the register live. With the thesis data, the Model page's default settings give exactly the thesis result (β1 = −2.195, n = 538).
 
 Optional: run `python scripts/build_rain_normals.py` once and commit `data/rain_normals_1991_2020.csv`. The rain comparison then loads instantly instead of asking for a one-off download.
 
@@ -44,7 +50,7 @@ Optional: run `python scripts/build_rain_normals.py` once and commit `data/rain_
 5. Click **Create app**, then **Deploy a public app from GitHub**. Pick the repository, branch `main`, main file `app.py`, and choose a short URL such as `water-chiapas.streamlit.app`.
 6. Click **Deploy**. The first build takes 2–4 minutes.
 7. Check the result:
-   - Open **Model playground**. With the default settings it should say *identical to the thesis*.
+   - Open **Model**. With the default settings it should say *Same as in the thesis* (if CONAGUA has not changed the register).
    - Open **Drought and rain**. If it offers to build the rain averages, click the button once.
 
 Put the app's URL in the thesis (Chapter 7 and the appendix) and on the defence slides.

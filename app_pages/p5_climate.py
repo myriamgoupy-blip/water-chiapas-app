@@ -16,7 +16,16 @@ ui.page_title(L("Sequía y lluvia, en vivo", "Drought and rain, live"),
               L("Las concesiones se otorgan en papel; que haya agua para repartir depende de la lluvia. "
                 "Esta página se actualiza sola con los datos oficiales de sequía y con la lluvia de los últimos meses.",
                 "Concessions are granted on paper; whether there is water to share depends on the rain. "
-                "This page updates itself with official drought data and recent rainfall."))
+                "This page updates itself with official drought data and recent rainfall."),
+              kicker=L("En vivo", "Live"))
+ui.guide([
+    (L("Hoy", "Today"), L("La categoría oficial de sequía de cada municipio y cuánto tiempo lleva seco.",
+                          "Each municipality's official drought category and how long it has been dry.")),
+    (L("Historia", "History"), L("Desde 2003: cada fila es un municipio, cada color una categoría del Monitor de Sequía.",
+                                 "Since 2003: each row is a municipality, each colour a Drought Monitor category.")),
+    (L("Lluvia", "Rain"), L("Lluvia reciente frente a lo normal (1991–2020) y el pronóstico de 7 días.",
+                            "Recent rain against normal (1991–2020) and the 7-day forecast.")),
+])
 
 # ================================================================ drought status
 streak = {}
@@ -34,7 +43,7 @@ for m in order:
     c = latest.get(m, "None")
     weeks = streak[m] * 15 / 30
     tiles.append(
-        f'<div style="background:#fff;border:1px solid {ui.LINE};border-left:6px solid {DROUGHT_COLOURS[c]};'
+        f'<div style="background:rgba(16,27,49,.7);border:1px solid {ui.LINE};border-left:6px solid {DROUGHT_COLOURS[c]};'
         f'border-radius:12px;padding:.6rem .8rem">'
         f'<div style="font-weight:700;color:{ui.NIGHT}">{MUNS[m]}</div>'
         f'<div style="margin:.25rem 0">{ui.dchip(c, ui.dlabel(c))}</div>'
@@ -185,7 +194,7 @@ def rain():
             y=alt.Y("v:Q", title="m³/m³", scale=alt.Scale(zero=False)),
             color=alt.Color("layer:N", title=L("Profundidad", "Depth"), scale=alt.Scale(range=[ui.PINE, ui.NIGHT])),
             tooltip=[alt.Tooltip("date:T", format="%d/%m"), "layer:N", alt.Tooltip("v:Q", format=".3f")])
-        sm = sm + alt.Chart(ss[ss.date == ss.date.max()]).mark_circle(size=70, stroke="white", strokeWidth=1.5).encode(
+        sm = sm + alt.Chart(ss[ss.date == ss.date.max()]).mark_circle(size=70, stroke="#070D1A", strokeWidth=1.5).encode(
             x="date:T", y="v:Q", color=alt.Color("layer:N", legend=None, scale=alt.Scale(range=[ui.PINE, ui.NIGHT])))
         ui.chart(sm, height=240)
         st.markdown('<p class="muted">' + L("Modelada, no medida (Open-Meteo).", "Modelled, not measured (Open-Meteo).") + '</p>',
