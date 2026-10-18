@@ -7,7 +7,7 @@ import altair as alt
 import numpy as np
 import streamlit as st
 
-from .config import DROUGHT_COLOURS, DROUGHT_LABELS, DROUGHT_LABELS_ES, MUN_SHORT, MUNS
+from .config import DEFAULT_LANG, DROUGHT_COLOURS, DROUGHT_LABELS, DROUGHT_LABELS_ES, MUN_SHORT, MUNS
 
 # ---------------------------------------------------------------- palette
 NIGHT = "#1B2448"      # hero, headings
@@ -30,7 +30,7 @@ MAP_DARK = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
 
 # ---------------------------------------------------------------- language
 def lang():
-    return st.session_state.get("lang_choice") or "ES"
+    return st.session_state.get("lang_choice") or DEFAULT_LANG
 
 
 def L(es, en):

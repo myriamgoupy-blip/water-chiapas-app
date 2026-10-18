@@ -139,7 +139,10 @@ def rain():
                 f"Barra: lluvia observada ({a90['from'].min():%d/%m} al {a90['to'].max():%d/%m}). Raya oscura: lo normal en esas fechas (1991–2020). "
                 "Naranja: por debajo de lo normal.",
                 f"Bar: observed rain ({a90['from'].min():%d/%m} to {a90['to'].max():%d/%m}). Dark tick: normal for those dates (1991–2020). "
-                "Orange: below normal.") + '</p>', unsafe_allow_html=True)
+                "Orange: below normal.") + " " + L(
+                "Las cantidades vienen del modelo ERA5, que tiende a sobrestimar la lluvia en zonas de montaña: compara el porcentaje, no los milímetros.",
+                "Amounts come from the ERA5 model, which tends to overestimate rain in mountains: compare the percentage, not the millimetres.")
+                + '</p>', unsafe_allow_html=True)
         with c2:
             g = recent[recent.MUN == mun].sort_values("date").copy()
             g["obs"] = g.precipitation_sum.cumsum()

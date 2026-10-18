@@ -105,16 +105,53 @@ if pts is not None:
             f"{len(b - a)} new records, {len(a - b)} removed, {len(a & b)} unchanged. "
             f"Thesis model at 2 km: β1 = {res['t']:.3f} (thesis) vs {res['a']:.3f} (other version)."))
 
+# ================================================================ titles to review
+if pts is not None:
+    st.subheader(L("Títulos por revisar", "Titles to review"))
+    st.markdown(L("Dos listas para quien revisa el registro: los puntos que LOCREPDA ubica donde no pueden estar, "
+                  "y los títulos con volumen en el REPDA que LOCREPDA no ubica en ningún punto.",
+                  "Two lists for anyone reviewing the register: points that LOCREPDA places where they cannot be, "
+                  "and titles with a volume in REPDA that LOCREPDA does not place anywhere."))
+    bad = pts[pts.flag != "ok"].copy()
+    bad = pd.DataFrame({
+        L("Título", "Title"): bad.FOLIOREG, L("Titular", "Holder"): bad.TITULAR.astype(str).str.title(),
+        L("Municipio registrado", "Registered municipality"): bad.MUPIO.map(MUNS), L("Uso", "Use"): bad.use,
+        L("Volumen LOCREPDA (m³/año)", "LOCREPDA volume (m³/yr)"): bad.VOL_CONS.round(0),
+        L("Longitud", "Longitude"): bad.LONDEC.round(3), L("Latitud", "Latitude"): bad.LATDEC.round(3),
+        L("Distancia a su municipio (km)", "Distance to its municipality (km)"): bad.get("own_km", pd.Series(dtype=float)).round(1),
+    }).sort_values(L("Distancia a su municipio (km)", "Distance to its municipality (km)"), ascending=False)
+    miss = ext[~located]
+    miss = pd.DataFrame({
+        L("Título", "Title"): miss["Título"], L("Titular", "Holder"): miss.Titular.astype(str).str.strip().str.title(),
+        L("Municipio", "Municipality"): miss.municipality, L("Uso", "Use"): miss.use,
+        L("Volumen REPDA (m³/año)", "REPDA volume (m³/yr)"): miss.vol.round(0), L("Año de registro", "Year registered"): miss.year,
+    }).sort_values(L("Volumen REPDA (m³/año)", "REPDA volume (m³/yr)"), ascending=False)
+    t1, t2 = st.tabs([L(f"Mal ubicados ({len(bad)})", f"Misplaced ({len(bad)})"),
+                      L(f"Sin ubicar ({len(miss)})", f"Not located ({len(miss)})")])
+    with t1:
+        st.dataframe(bad, hide_index=True, height=320,
+                     column_config={L("Volumen LOCREPDA (m³/año)", "LOCREPDA volume (m³/yr)"): st.column_config.NumberColumn(format="localized")})
+    with t2:
+        st.caption(L(f"{len(miss)} títulos suman {miss.iloc[:, 4].sum() / ext.vol.sum():.0%} del volumen concesionado.",
+                     f"{len(miss)} titles add up to {miss.iloc[:, 4].sum() / ext.vol.sum():.0%} of the concessioned volume."))
+        st.dataframe(miss, hide_index=True, height=320,
+                     column_config={L("Volumen REPDA (m³/año)", "REPDA volume (m³/yr)"): st.column_config.NumberColumn(format="localized"),
+                                    L("Año de registro", "Year registered"): st.column_config.NumberColumn(format="%d")})
+    both = pd.concat([bad.assign(**{L("Problema", "Issue"): L("Ubicación imposible", "Impossible location")}),
+                      miss.assign(**{L("Problema", "Issue"): L("Sin ubicar en LOCREPDA", "Not located in LOCREPDA")})], ignore_index=True)
+    st.download_button(L("Descargar los títulos por revisar (CSV)", "Download the titles to review (CSV)"),
+                       both.to_csv(index=False), "titles_to_review.csv", "text/csv", icon=":material/download:")
+
 # ================================================================ methods
 st.subheader(L("Cómo se construyen las variables", "How the variables are built"))
 st.markdown(L("""
-- **Viviendas sin agua**: % de viviendas particulares habitadas sin agua entubada dentro de la vivienda (VPH_AGUADV / VIVPARH_CV, censo 2020).
+- **Viviendas sin agua**: % de viviendas particulares habitadas que no disponen de agua entubada en el ámbito de la vivienda, es decir, ni dentro ni en el patio (1 − VPH_AGUADV / VIVPARH_CV, censo 2020).
 - **Lengua indígena**: % de personas de 3 años y más que hablan una lengua indígena (P3YM_HLI / P_3YMAS).
 - **Intensidad de concesiones**: cada título del REPDA se une a sus puntos de LOCREPDA por el número que sigue a "CHS". Su volumen se reparte entre sus puntos y se suma el de todos los puntos dentro del radio, por habitante, en escala log(1 + m³).
 - **Modelo**: mínimos cuadrados con efectos fijos por municipio, controlando por población (log) y escolaridad. Tres pruebas: errores robustos (HC1), errores espaciales de Conley y bootstrap restringido por municipio (pesos de Webb).
 - **Índice de prioridad**: promedio ponderado de componentes entre 0 y 1, con pesos elegidos por quien usa la app.
 """, """
-- **Homes without water**: % of private inhabited homes without piped water inside (VPH_AGUADV / VIVPARH_CV, 2020 census).
+- **Homes without water**: % of private inhabited homes with no piped water at home, neither inside nor in the yard (1 − VPH_AGUADV / VIVPARH_CV, 2020 census).
 - **Indigenous share**: % of people aged 3 and over who speak an Indigenous language (P3YM_HLI / P_3YMAS).
 - **Concession intensity**: each REPDA title is matched to its LOCREPDA points on the number after "CHS". Its volume is split across its points; the volume of all points within the radius is summed, per resident, on a log(1 + m³) scale.
 - **Model**: least squares with municipality fixed effects, controlling for log population and schooling. Three tests: robust errors (HC1), Conley spatial errors, and a restricted wild cluster bootstrap by municipality (Webb weights).
@@ -123,12 +160,14 @@ st.markdown(L("""
 st.subheader(L("Límites", "Limits"))
 st.markdown(L("""
 - El censo es de 2020; las concesiones y la sequía son más recientes.
+- El ITER no separa el agua dentro de la vivienda del agua en el patio: solo dice si hay agua entubada en la vivienda o el terreno.
 - INEGI no publica los datos de las localidades muy pequeñas: 133 de 985 no se pueden analizar.
 - Algunas coordenadas de LOCREPDA están mal por kilómetros; esos puntos se descartan, no se mueven.
 - Una concesión es un derecho a extraer, no una medición de lo extraído ni de dónde se entrega.
 - Los resultados son asociaciones: muchas concesiones son los propios sistemas de agua de las localidades vecinas.
 """, """
 - The census dates from 2020; concessions and drought are more recent.
+- ITER does not separate water inside the home from water in the yard: it only says whether there is piped water on the premises.
 - INEGI does not publish data for very small localities: 133 of 985 cannot be analysed.
 - Some LOCREPDA coordinates are wrong by kilometres; those points are set aside, not moved.
 - A concession is a right to extract, not a measure of what is extracted or where it is delivered.
@@ -136,7 +175,7 @@ st.markdown(L("""
 """))
 
 loc = engine.table(pkey, pts)
-keep = ["MUN", "municipality", "LOC", "NOM_LOC", "lon", "lat", "ALTITUD", "POBTOT", "dep_water", "dep_water_lot",
+keep = ["MUN", "municipality", "LOC", "NOM_LOC", "lon", "lat", "ALTITUD", "POBTOT", "dep_water",
         "dep_drain", "indig", "school", "intensity", "intensity_2km_thesis"]
 st.download_button(L("Descargar las 985 localidades (CSV)", "Download all 985 localities (CSV)"),
                    loc[keep].to_csv(index=False), "localities_app.csv", "text/csv", icon=":material/download:")

@@ -5,16 +5,17 @@ import pydeck as pdk
 import streamlit as st
 
 from core import data, engine, index, maps, ui
-from core.config import MUNS
+from core.config import MUNS, THESIS_DROUGHT_DATE
 
 L = ui.L
 pts, pkey = data.active_points()
 loc = engine.table(pkey, pts)
 drought, _ = data.drought()
+vol2 = engine.volume_around(pkey, pts, 2.0) if pts is not None else pd.Series(np.nan, index=loc.index)
 
 NAMES = {
     "water": (L("Viviendas sin agua entubada", "Homes without piped water"),
-              L("Porcentaje de viviendas sin agua entubada dentro (censo 2020).", "Share of homes without piped water inside (2020 census).")),
+              L("Porcentaje de viviendas sin agua entubada, ni dentro ni en el patio (censo 2020).", "Share of homes without piped water, neither inside nor in the yard (2020 census).")),
     "drain": (L("Viviendas sin drenaje", "Homes without drainage"),
               L("Porcentaje de viviendas sin conexión a drenaje.", "Share of homes with no drainage connection.")),
     "mismatch": (L("Agua concedida cerca que no llega", "Water granted nearby that doesn't arrive"),
@@ -22,8 +23,9 @@ NAMES = {
                    "High when a lot of water is granted within 2 km and homes still lack connections.")),
     "school": (L("Baja escolaridad", "Low schooling"),
                L("Años promedio de escolaridad, invertidos (menos años = más prioridad).", "Average years of schooling, reversed (fewer years = higher priority).")),
-    "drought": (L("Sequía (en vivo)", "Drought (live)"),
-                L("Categoría del Monitor de Sequía del municipio (sin sequía = 0, D4 = 1).", "The municipality's Drought Monitor category (no drought = 0, D4 = 1).")),
+    "drought": (L("Sequía", "Drought"),
+                L("Categoría promedio del Monitor de Sequía del municipio en los últimos 12 meses (sin sequía = 0, D4 = 1).",
+                  "The municipality's average Drought Monitor category over the last 12 months (no drought = 0, D4 = 1).")),
     "indig": (L("Hablantes de lengua indígena", "Indigenous-language speakers"),
               L("Apagado por defecto: incluirlo es una decisión política que conviene tomar a conciencia.",
                 "Off by default: including it is a political choice to make knowingly.")),
@@ -65,13 +67,25 @@ def ranking():
             o1, o2 = st.columns(2)
             min_pop = o1.select_slider(L("Habitantes mín.", "Min. inhabitants"), [0, 50, 100, 250, 500], value=100, key="i_minpop")
             o2.button(L("Pesos iniciales", "Default weights"), on_click=reset, width="stretch")
+            dsrc = st.segmented_control(
+                L("Datos de sequía", "Drought data"), ["latest", "thesis"], default="latest", required=True, key="i_dsrc",
+                format_func=lambda o: L("Últimos publicados", "Latest published") if o == "latest"
+                else L("Tesis (15/09/2026)", "Thesis (15/09/2026)"),
+                help=L("«Tesis» usa el Monitor de Sequía hasta el 15 de septiembre de 2026, como en la tabla 7.2 de la tesis.",
+                       "'Thesis' uses the Drought Monitor up to 15 September 2026, as in Table 7.2 of the thesis."))
     if tot == 0:
         st.warning(L("Todos los pesos están en cero. Sube al menos uno.", "All weights are zero. Raise at least one."))
         return
 
     d = loc.dropna(subset=["dep_water", "dep_drain", "school", "indig", "intensity"])
     d = d[d.POBTOT > min_pop].copy()
-    comp = index.components(d, index.drought_pressure(drought))
+    if dsrc == "thesis":
+        snap = data.drought_snapshot()
+        dsel = snap[snap.date <= pd.Timestamp(THESIS_DROUGHT_DATE)]
+    else:
+        dsel = drought
+    comp = index.components(d, index.drought_pressure(dsel))
+    d["vol2"] = vol2.reindex(d.index)
     d["index"] = index.score(comp, weights)
     d["rank"] = d["index"].rank(ascending=False, method="min").astype(int)
     d = d.sort_values("rank")
@@ -97,12 +111,15 @@ def ranking():
             "#": show["rank"], L("Localidad", "Locality"): show.NOM_LOC, L("Municipio", "Municipality"): show.MUN.map(MUNS),
             L("Habitantes", "Inhabitants"): show.POBTOT, L("Índice", "Index"): show["index"],
             L("Sin agua %", "No water %"): show.dep_water.round(0), L("Sin drenaje %", "No drainage %"): show.dep_drain.round(0),
+            L("Agua concedida a 2 km (m³/año)", "Water granted within 2 km (m³/yr)"): show.vol2.round(0),
             L("Indígena %", "Indigenous %"): show.indig.round(0)}),
             hide_index=True, height=480, column_config={
                 L("Índice", "Index"): st.column_config.ProgressColumn(format="%.0f", min_value=0, max_value=100, width="medium"),
-                L("Habitantes", "Inhabitants"): st.column_config.NumberColumn(format="%d")})
+                L("Habitantes", "Inhabitants"): st.column_config.NumberColumn(format="%d"),
+                L("Agua concedida a 2 km (m³/año)", "Water granted within 2 km (m³/yr)"): st.column_config.NumberColumn(format="localized")})
+        st.caption(L(f"Sequía: Monitor de Sequía hasta el {dsel.date.max():%d/%m/%Y}.", f"Drought: Drought Monitor up to {dsel.date.max():%d/%m/%Y}."))
         st.download_button(L("Descargar la lista completa (CSV)", "Download the full list (CSV)"),
-                           pd.concat([d[["rank", "MUN", "LOC", "NOM_LOC", "POBTOT", "index"]],
+                           pd.concat([d[["rank", "MUN", "LOC", "NOM_LOC", "POBTOT", "index", "dep_water", "dep_drain", "vol2"]].rename(columns={"vol2": "vol_2km_m3"}),
                                       comp.loc[d.index].add_prefix("component_")], axis=1).to_csv(index=False),
                            "priority_index.csv", "text/csv")
 

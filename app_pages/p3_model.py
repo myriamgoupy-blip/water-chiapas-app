@@ -33,14 +33,15 @@ def playground():
     # ------------------------------------------------------------ controls
     with st.container(key="panel_model"):
         a, b = st.columns([1, 1])
+        dv = "dep_water"
         mname = a.pills(L("Modelo", "Model"), ["M1", "M2", "M3"], default="M3", required=True, key="m_model",
                         format_func={"M1": L("Solo intensidad", "Intensity only"),
                                      "M2": L("+ lengua indígena", "+ Indigenous share"),
                                      "M3": L("+ interacción (tesis)", "+ interaction (thesis)")}.get)
-        dv = b.pills(L("Qué cuenta como falta de agua", "What counts as lacking water"), ["dep_water", "dep_water_lot"],
-                     default="dep_water", required=True, key="m_dv",
-                     format_func={"dep_water": L("Sin agua dentro de la vivienda", "No water inside the home"),
-                                  "dep_water_lot": L("Sin agua ni en el patio", "No water even to the yard")}.get)
+        b.markdown('<p class="muted" style="margin-top:1.9rem">' + L(
+            "Resultado: % de viviendas sin agua entubada (ni dentro ni en el patio), censo 2020.",
+            "Outcome: % of homes without piped water (neither inside nor in the yard), 2020 census.") + '</p>',
+            unsafe_allow_html=True)
         c, d, e = st.columns([2, 2, 1.4])
         radius = c.slider(L("Radio alrededor de cada localidad (km)", "Radius around each locality (km)"),
                           0.5, 10.0, 2.0, 0.5, disabled=snap, key="m_radius")
@@ -106,15 +107,21 @@ def playground():
                         + (f'{L("Bootstrap", "Bootstrap")} {badge(wild["int_c"])}' if wild else "") + '</p>',
                         unsafe_allow_html=True)
         q25, q75 = d.intensity.quantile([.25, .75])
-        out = L("sin agua entubada dentro", "without piped water inside") if dv == "dep_water" else \
-            L("sin agua ni en el patio", "without water even to the yard")
+        out = L("sin agua entubada", "without piped water")
         direction = L("menos" if b1 < 0 else "más", "fewer" if b1 < 0 else "more")
-        txt = L(f"Las localidades con más agua concesionada {'a menos de ' + format(radius, 'g') + ' km' if meas == 'buffer' else 'asignada'} "
-                f"tienen <b>{direction}</b> viviendas {out}: del percentil 25 al 75 de intensidad, "
-                f"{b1 * (q75 - q25):+.1f} puntos porcentuales (promedio {d[dv].mean():.0f}%).",
-                f"Localities with more water granted {'within ' + format(radius, 'g') + ' km' if meas == 'buffer' else 'assigned to them'} "
-                f"have <b>{direction}</b> homes {out}: from the 25th to the 75th percentile of intensity, "
-                f"{b1 * (q75 - q25):+.1f} percentage points (average {d[dv].mean():.0f}%).")
+        weak = min(ps) >= 0.10
+        where = ("a menos de " + format(radius, "g") + " km" if meas == "buffer" else "asignada",
+                 "within " + format(radius, "g") + " km" if meas == "buffer" else "assigned to them")
+        if weak:
+            txt = L(f"Con estos ajustes, tener más agua concesionada {where[0]} no se asocia de forma clara con más o menos "
+                    f"viviendas {out} ({b1 * (q75 - q25):+.1f} puntos del percentil 25 al 75 de intensidad).",
+                    f"With these settings, more water granted {where[1]} shows no clear link with more or fewer homes "
+                    f"{out} ({b1 * (q75 - q25):+.1f} points from the 25th to the 75th percentile of intensity).")
+        else:
+            txt = L(f"Las localidades con más agua concesionada {where[0]} tienen <b>{direction}</b> viviendas {out}: "
+                    f"del percentil 25 al 75 de intensidad, {b1 * (q75 - q25):+.1f} puntos porcentuales (promedio {d[dv].mean():.0f}%).",
+                    f"Localities with more water granted {where[1]} have <b>{direction}</b> homes {out}: from the 25th "
+                    f"to the 75th percentile of intensity, {b1 * (q75 - q25):+.1f} percentage points (average {d[dv].mean():.0f}%).")
         if mname == "M3":
             p3 = min(fit.pvalues["int_c:ind_c"], cp["int_c:ind_c"])
             txt += " " + (L("La relación cambia con la proporción indígena.", "The relationship changes with the Indigenous share.")
@@ -214,8 +221,8 @@ def playground():
         loo = []
         for m in sorted(d.MUN.unique()):
             ff = fastols.Fit(fastols.centre(d[d.MUN != m]), mname, dv)
-            loo.append({L("Sin el municipio", "Without"): MUNS[m], "n": ff.n, "β1": round(ff.params["int_c"], 3),
-                        L("p robusto", "p robust"): round(ff.pvalues["int_c"], 3)})
+            loo.append({L("Sin el municipio", "Without"): MUNS[m], "n": ff.n, "β1": f'{ff.params["int_c"]:.3f}',
+                        L("p robusto", "p robust"): f'{ff.pvalues["int_c"]:.3f}'})
         st.dataframe(pd.DataFrame(loo), hide_index=True)
         st.download_button(L("Descargar los datos del modelo (CSV)", "Download the model data (CSV)"),
                            d.to_csv(index=False), "model_dataset_app.csv", "text/csv")

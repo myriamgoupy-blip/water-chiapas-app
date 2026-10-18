@@ -33,7 +33,7 @@ if objs and (objs[0].get("MUN"), objs[0].get("LOC")) != st.session_state.get("_l
 
 # ---------------------------------------------------------------- controls
 COLOUR = {
-    "dep_water": (L("Viviendas sin agua entubada dentro", "Homes without piped water inside"), "%"),
+    "dep_water": (L("Viviendas sin agua entubada", "Homes without piped water"), "%"),
     "indig": (L("Hablantes de lengua indígena", "Indigenous-language speakers"), "%"),
     "priority": (L("Índice de prioridad", "Priority index"), ""),
     "intensity": (L("Intensidad de concesiones (2 km)", "Concession intensity (2 km)"), ""),
@@ -122,8 +122,8 @@ with left:
         s = L("INEGI no publica los datos de vivienda de esta localidad porque es muy pequeña.",
               "INEGI does not publish housing data for this locality because it is very small.")
     else:
-        s = L(f"En {row.NOM_LOC}, {pct(row.dep_water)} de las viviendas no tiene agua entubada dentro.",
-              f"In {row.NOM_LOC}, {pct(row.dep_water)} of homes have no piped water inside.")
+        s = L(f"En {row.NOM_LOC}, {pct(row.dep_water)} de las viviendas no tiene agua entubada, ni dentro ni en el patio.",
+              f"In {row.NOM_LOC}, {pct(row.dep_water)} of homes have no piped water, neither inside nor in the yard.")
     if near is not None:
         if near.empty:
             s += " " + L(f"No hay concesiones registradas a menos de {radius:g} km.",
@@ -139,8 +139,8 @@ with left:
     st.markdown(f'<p class="sentence">{s}</p>', unsafe_allow_html=True)
     st.markdown(ui.facts([
         (L("Habitantes", "Inhabitants"), ui.num(row.POBTOT), ""),
-        (L("Sin agua entubada dentro", "No piped water inside"), pct(row.dep_water), "homes"),
-        (L("Sin agua ni en el patio", "No water even to the yard"), pct(row.dep_water_lot), "homes"),
+        (L("Viviendas habitadas", "Inhabited homes"), ui.num(row.VIVPARH_CV), ""),
+        (L("Sin agua entubada", "No piped water"), pct(row.dep_water), "homes"),
         (L("Sin drenaje", "No drainage"), pct(row.dep_drain), ""),
         (L("Hablan lengua indígena", "Speak an Indigenous language"), pct(row.indig), ""),
         (L("Años de escolaridad", "Years of schooling"), "–" if row.school != row.school else f"{row.school:.1f}", ""),

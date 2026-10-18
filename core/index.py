@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 COMPONENTS = {
-    "water": ("Households without piped water inside", "Share of dwellings without piped water inside the dwelling (census 2020)."),
+    "water": ("Households without piped water", "Share of dwellings without piped water inside the dwelling or in its yard (census 2020)."),
     "drain": ("Households without drainage", "Share of dwellings not connected to any drainage (census 2020)."),
     "mismatch": ("Water claimed nearby, not reaching homes", "Concession intensity around the locality (rescaled 0–1) × share of dwellings without piped water. High when a lot of water is concessioned nearby but households still lack it."),
     "school": ("Low schooling", "Average years of schooling, reversed and rescaled 0–1 (fewest years = 1)."),

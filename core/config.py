@@ -5,6 +5,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 CACHE = DATA / "cache"          # written at run time (live pulls); safe to delete
 
+DEFAULT_LANG = "EN"   # "ES" opens the app in Spanish
+
 MUNS = {
     78: "San Cristóbal de las Casas", 111: "Zinacantán", 23: "Chamula", 93: "Tenejapa",
     38: "Huixtán", 94: "Teopisca", 7: "Amatenango del Valle", 24: "Chanal",
@@ -14,6 +16,7 @@ MUN_SHORT = {78: "San Cristóbal", 111: "Zinacantán", 23: "Chamula", 93: "Tenej
              94: "Teopisca", 7: "Amatenango", 24: "Chanal", 19: "Comitán"}
 
 # Thesis main specification (Notebook 4, run of 10 Oct 2026). Used to show a "matches the thesis" badge.
+THESIS_DROUGHT_DATE = "2026-09-15"   # last Drought Monitor assessment used in the thesis (Table 7.2)
 THESIS = dict(radius_km=2, min_pop=100, dv="dep_water", model="M3", n=538, beta1=-2.195)
 
 # Data snapshot dates shown in the interface

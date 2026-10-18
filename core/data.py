@@ -22,8 +22,8 @@ def localities():
     for c in CENSUS_NUM:
         loc[c] = pd.to_numeric(loc[c], errors="coerce")
     loc["municipality"] = loc.MUN.map(MUNS)
+    # VPH_AGUADV = piped water inside the home or in its yard (INEGI); so this is "no piped water at home"
     loc["dep_water"] = 100 * (1 - loc.VPH_AGUADV / loc.VIVPARH_CV)
-    loc["dep_water_lot"] = 100 * (1 - (loc.VPH_AGUADV + loc.VPH_AGUAFV) / loc.VIVPARH_CV)
     loc["dep_drain"] = 100 * (1 - loc.VPH_DRENAJ / loc.VIVPARH_CV)
     loc["dep_toilet"] = 100 * (1 - loc.VPH_EXCSA / loc.VIVPARH_CV)
     loc["indig"] = 100 * loc.P3YM_HLI / loc.P_3YMAS

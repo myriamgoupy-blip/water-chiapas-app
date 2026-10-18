@@ -32,10 +32,10 @@ with st.container(key="hero"):
             '<p class="hero-sub">' + L(
                 f"Alrededor de San Cristóbal de las Casas, CONAGUA ha otorgado {n:,} títulos que suman "
                 f"{ext.vol.sum() / 1e6:,.0f} millones de m³ de agua al año. Aun así, en la localidad promedio "
-                f"una de cada cuatro viviendas no tiene agua entubada dentro.",
+                f"una de cada cuatro viviendas no tiene agua entubada, ni dentro ni en el patio.",
                 f"Around San Cristóbal de las Casas, CONAGUA has granted {n:,} water titles adding up to "
                 f"{ext.vol.sum() / 1e6:,.0f} million m³ a year. Yet in the average locality one home in four "
-                f"has no piped water inside.") + '</p>', unsafe_allow_html=True)
+                f"has no piped water, neither inside nor in the yard.") + '</p>', unsafe_allow_html=True)
         st.markdown(
             f"<p style='margin:.9rem 0 .35rem 0;font-weight:600'>"
             + L(f"Sequía hoy: {n_drought} de 9 municipios", f"Drought today: {n_drought} of 9 municipalities")
@@ -50,7 +50,7 @@ with st.container(key="hero"):
         view = loc[loc.lon.notna()].copy()
         view["t1"] = view.NOM_LOC
         view["t2"] = view.MUN.map(ui.mun_name)
-        view["t3"] = L("Sin agua entubada dentro: ", "No piped water inside: ") + view.dep_water.map(
+        view["t3"] = L("Sin agua entubada: ", "No piped water: ") + view.dep_water.map(
             lambda x: "–" if x != x else f"{x:.0f}%")
         layers = [maps.locality_layer(view, "dep_water", 0, 100, pickable=True, opacity=235)]
         if pts is not None:
@@ -71,7 +71,7 @@ b.markdown(f'<div class="big">{top10:.0%}</div>'
            f'<p class="muted">{L("del volumen está en el 10% de los títulos más grandes", "of the volume sits in the largest 10% of titles")}</p>',
            unsafe_allow_html=True)
 c.markdown(f'<div class="big homes">{share_no_water:.0%}</div>'
-           f'<p class="muted">{L("de todas las viviendas no tiene agua entubada dentro (27% en la localidad promedio)", "of all homes have no piped water inside (27% in the average locality)")}</p>',
+           f'<p class="muted">{L("de todas las viviendas no tiene agua entubada, ni dentro ni en el patio (27% en la localidad promedio)", "of all homes have no piped water, neither inside nor in the yard (27% in the average locality)")}</p>',
            unsafe_allow_html=True)
 
 # ---- who holds it ----------------------------------------------------------------------
@@ -120,10 +120,10 @@ f2.markdown("**" + L("Constante, pero moderado", "Consistent, but moderate") + "
     "The sign holds in every variant. How strong it is statistically depends on how closeness between "
     "localities and the small number of municipalities are handled."))
 f3.markdown("**" + L("Igual en localidades indígenas", "The same in Indigenous localities") + "**  \n" + L(
-    "La relación no cambia con la proporción de hablantes de lengua indígena. Desaparece si el agua entubada "
-    "hasta el patio cuenta como acceso.",
-    "The relationship does not change with the share of Indigenous-language speakers. It disappears if water "
-    "piped to the yard counts as access."))
+    "La relación es más o menos la misma sea cual sea la proporción de hablantes de lengua indígena: "
+    "las concesiones no se reparten distinto en las localidades indígenas.",
+    "The relationship is about the same whatever the share of Indigenous-language speakers, and concessions "
+    "are not distributed differently in Indigenous localities."))
 st.markdown('<p class="muted" style="margin-top:.6rem">' + L(
     "Es una asociación, no una causa: muchas concesiones son el registro legal de los propios sistemas de agua de las localidades.",
     "This is an association, not a cause: many concessions are the legal registration of the localities' own water systems.")
