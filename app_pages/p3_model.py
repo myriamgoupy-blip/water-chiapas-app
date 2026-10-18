@@ -33,10 +33,10 @@ if snap:
 
 def badge(p):
     if p < 0.05:
-        return ui.chip(f"p = {p:.3f}", "#12A578", "#fff")
+        return ui.chip(f"p = {p:.3f}", "#0F3D2C", "#6EE7B7")
     if p < 0.10:
-        return ui.chip(f"p = {p:.3f}", "#E49B0F", "#fff")
-    return ui.chip(f"p = {p:.3f}", "#94A3B8", "#fff")
+        return ui.chip(f"p = {p:.3f}", "#3D2F0A", "#FCD34D")
+    return ui.chip(f"p = {p:.3f}", "#1A2742", ui.MUTED)
 
 
 @st.fragment
@@ -94,11 +94,11 @@ def playground():
 
     # ------------------------------------------------------------ result
     if max(ps) < 0.05:
-        verdict, vcol = L("Sólido en las tres pruebas", "Holds in all three tests"), "#12A578"
+        verdict, vcol = L("Sólido en las tres pruebas", "Holds in all three tests"), "#34D399"
     elif min(ps) < 0.05:
-        verdict, vcol = L("Moderado: significativo en algunas pruebas", "Moderate: significant in some tests"), "#D97706"
+        verdict, vcol = L("Moderado: significativo en algunas pruebas", "Moderate: significant in some tests"), "#FBBF24"
     elif min(ps) < 0.10:
-        verdict, vcol = L("Débil: apenas al límite", "Weak: borderline at best"), "#D97706"
+        verdict, vcol = L("Débil: apenas al límite", "Weak: borderline at best"), "#FBBF24"
     else:
         verdict, vcol = L("No se distingue de cero", "Not distinguishable from zero"), ui.MUTED
     with st.container(key="result_model"):
@@ -157,7 +157,7 @@ def playground():
         band = base.mark_area(opacity=0.22, color=ui.WATER, interpolate="monotone").encode(
             y=alt.Y("low:Q", title=L("β1 e intervalo de 95%", "β1 and 95% interval")), y2="high:Q")
         line = base.mark_line(color=ui.WATER, strokeWidth=3, interpolate="monotone").encode(y="beta1:Q")
-        dots = base.mark_circle(size=55, color=ui.WATER, stroke="white", strokeWidth=1.5).encode(
+        dots = base.mark_circle(size=55, color=ui.WATER, stroke="#070D1A", strokeWidth=1.5).encode(
             y="beta1:Q", tooltip=[alt.Tooltip("radius:Q", title="km"), alt.Tooltip("beta1:Q", format=".2f", title="β1"),
                                   alt.Tooltip("p:Q", format=".3f", title="p (Conley)")])
         zero = alt.Chart(pd.DataFrame({"y": [0]})).mark_rule(color=ui.MUTED, strokeDash=[3, 3]).encode(y="y:Q")
@@ -185,7 +185,7 @@ def playground():
             tooltip=[alt.Tooltip("NOM_LOC:N", title=""), alt.Tooltip(f"{dv}:Q", format=".0f", title="%")])
         area = alt.Chart(bs).mark_area(color=ui.gradient(ui.WATER), interpolate="monotone").encode(x="intensity:Q", y="y:Q")
         ln = alt.Chart(bs).mark_line(color=ui.WATER, strokeWidth=3, interpolate="monotone",
-                                     point=alt.OverlayMarkDef(size=70, color=ui.WATER, stroke="white", strokeWidth=1.5)).encode(
+                                     point=alt.OverlayMarkDef(size=70, color=ui.WATER, stroke="#070D1A", strokeWidth=1.5)).encode(
             x="intensity:Q", y="y:Q", tooltip=[alt.Tooltip("y:Q", format=".1f", title=L("promedio %", "mean %")), "n"])
         ui.chart(pts_ch + area + ln, height=300)
         ui.explain(L("Puntos: cada localidad. Línea: promedio por décimo de intensidad. La línea baja de izquierda a derecha: "
@@ -214,7 +214,7 @@ def playground():
             st.markdown(L("Elige el modelo **+ interacción** para ver esta gráfica.", "Choose the **+ interaction** model to see this chart."))
 
     # ------------------------------------------------------------ where the model is surprised
-    st.markdown(f"#### {L('¿Dónde se equivoca más el modelo?', 'Where is the model most surprised?')}")
+    st.markdown(f"#### ✦ {L('¿Dónde se equivoca más el modelo?', 'Where is the model most surprised?')}")
     sp = d.assign(predicted=(fit.X @ fit.params.values).clip(0, 100))
     sp["surprise"] = sp[dv] - sp.predicted
     top = sp.sort_values("surprise", ascending=False).head(12)
@@ -226,7 +226,7 @@ def playground():
             y=alt.Y(f"{dv}:Q", title=L("Lo que se observa (% sin agua)", "What is observed (% without water)"), scale=alt.Scale(domain=[0, 100])),
             tooltip=[alt.Tooltip("NOM_LOC:N", title=""), alt.Tooltip("predicted:Q", format=".0f", title=L("esperado %", "expected %")),
                      alt.Tooltip(f"{dv}:Q", format=".0f", title=L("observado %", "observed %"))])
-        hot = alt.Chart(top).mark_circle(size=90, color=ui.HOMES, stroke="white", strokeWidth=1).encode(
+        hot = alt.Chart(top).mark_circle(size=90, color=ui.HOMES, stroke="#070D1A", strokeWidth=1).encode(
             x="predicted:Q", y=f"{dv}:Q", tooltip=[alt.Tooltip("NOM_LOC:N", title=""),
                                                     alt.Tooltip("surprise:Q", format="+.0f", title=L("sorpresa (pts)", "surprise (pts)"))])
         diag = alt.Chart(pd.DataFrame({"x": [0, 100], "y": [0, 100]})).mark_line(color=ui.MUTED, strokeDash=[4, 4]).encode(x="x:Q", y="y:Q")

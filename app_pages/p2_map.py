@@ -181,7 +181,7 @@ with left:
     if row.name in k.index:
         kr = k.loc[row.name]
         st.markdown(ui.segtag(kr.segment) + "&nbsp; " + ui.chip(L(f"Prioridad n.º {int(kr.priority_rank)} de {len(k)}",
-                                                                   f"Priority rank {int(kr.priority_rank)} of {len(k)}")),
+                                                                   f"Priority rank {int(kr.priority_rank)} of {len(k)}"), "#1A2742", ui.INK),
                     unsafe_allow_html=True)
         gap = kr.dep_water - kr.predicted
         model_line = L(
@@ -212,7 +212,7 @@ with right:
         by_holder["name"] = by_holder.TITULAR.astype(str).str.title().str.slice(0, 38)
         by_holder = by_holder.sort_values("vol", ascending=False).head(8)
         ch = alt.Chart(by_holder).mark_bar(cornerRadiusEnd=5, height=18, color=ui.WATER).encode(
-            y=alt.Y("name:N", sort=list(by_holder.name), title=None, axis=alt.Axis(labelLimit=230)),
+            y=alt.Y("name:N", sort=list(by_holder.name), title=None, axis=alt.Axis(labelLimit=230, labelColor=ui.INK)),
             x=alt.X("vol:Q", title="m³/" + L("año", "yr"), axis=alt.Axis(format="~s")),
             tooltip=[alt.Tooltip("TITULAR:N", title=""), alt.Tooltip("vol:Q", format=",.0f", title="m³"),
                      alt.Tooltip("dist:Q", format=".2f", title="km")])
@@ -235,7 +235,7 @@ if near is not None and not near.empty:
 
 # ---------------------------------------------------------------- similar localities (k-nearest neighbours)
 if row.name in k.index:
-    st.markdown(f"#### {L('Localidades parecidas', 'Similar localities')}")
+    st.markdown(f"#### ✦ {L('Localidades parecidas', 'Similar localities')}")
     pr = insights.peers(k, row.name, n=6)
     better = int((pr.dep_water < 50).sum())
     st.markdown('<p class="muted">' + L(

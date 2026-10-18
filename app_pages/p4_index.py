@@ -69,7 +69,7 @@ def ranking():
             if tot > 0:
                 w = pd.DataFrame({"c": [NAMES[k][0] for k in weights], "w": [v / tot for v in weights.values()]})
                 ch = alt.Chart(w).mark_bar(cornerRadiusEnd=5, height=16, color=ui.WATER).encode(
-                    y=alt.Y("c:N", sort=list(w.c), title=None, axis=alt.Axis(labelLimit=200)),
+                    y=alt.Y("c:N", sort=list(w.c), title=None, axis=alt.Axis(labelLimit=200, labelColor=ui.INK)),
                     x=alt.X("w:Q", title=L("Peso en el índice", "Weight in the index"), axis=alt.Axis(format="%"),
                             scale=alt.Scale(domain=[0, max(0.5, w.w.max())])))
                 t = ch.mark_text(align="left", dx=5, fontSize=12, color=ui.MUTED).encode(text=alt.Text("w:Q", format=".0%"))
@@ -156,11 +156,11 @@ def ranking():
         f"We recompute the index 500 times, nudging your weights at random. <b>{sure} of the top {top_n}</b> localities "
         f"stay in the top {top_n} in at least 80% of cases: they are solid priorities.") + '</p>', unsafe_allow_html=True)
     base = alt.Chart(top).encode(y=alt.Y("label:N", sort=list(top.label), title=None,
-                                         axis=alt.Axis(labelLimit=320, labelOverlap=False)))
+                                         axis=alt.Axis(labelLimit=320, labelOverlap=False, labelColor=ui.INK)))
     rng = base.mark_bar(height=9, cornerRadius=5, color=ui.WATER_SOFT).encode(
         x=alt.X("rank_p5:Q", title=L("Lugar en las 500 versiones (rango del 90%; punto = mediana)",
                                      "Rank across the 500 versions (90% range; dot = median)")), x2="rank_p95:Q")
-    dot = base.mark_circle(size=90, stroke="white", strokeWidth=1.5).encode(
+    dot = base.mark_circle(size=90, stroke="#070D1A", strokeWidth=1.5).encode(
         x="median_rank:Q",
         color=alt.condition(alt.datum[f"top{top_n}_share"] >= 0.8, alt.value(ui.HOMES), alt.value(ui.MUTED)),
         tooltip=[alt.Tooltip("NOM_LOC:N", title=""), alt.Tooltip("median_rank:Q", title=L("mediana", "median")),

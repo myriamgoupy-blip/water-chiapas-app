@@ -32,10 +32,9 @@ with st.container(key="hero"):
     left, right = st.columns([5, 6], gap="large", vertical_alignment="center")
     with left:
         st.markdown(ui.live_pill(L(f"Datos en vivo · sequía al {last:%d/%m/%Y}", f"Live data · drought as of {last:%d/%m/%Y}"))
-                    + " &nbsp;" + '<span class="pill ai">' + L("Modelo + IA", "Model + AI") + '</span>',
+                    + " &nbsp;" + '<span class="pill" style="color:#C9B8FF">✦ ' + L("Modelo + IA", "Model + AI") + '</span>',
                     unsafe_allow_html=True)
-        st.markdown(L("# ¿Quién tiene <span class='accent'>el agua</span>?", "# Who holds <span class='accent'>the water</span>?"),
-                    unsafe_allow_html=True)
+        st.markdown(f"# {L('¿Quién tiene el agua?', 'Who holds the water?')}")
         st.markdown(
             '<p class="hero-sub">' + L(
                 f"Alrededor de San Cristóbal de las Casas, CONAGUA ha otorgado {n:,} títulos que suman "
@@ -48,7 +47,7 @@ with st.container(key="hero"):
         b1.page_link("app_pages/p7_ask.py", label=L("Pregunta a los datos", "Ask the data"), icon=":material/auto_awesome:")
         b2.page_link("app_pages/p2_map.py", label=L("Busca tu localidad", "Find your locality"), icon=":material/map:")
         st.markdown(
-            "<p style='margin:.8rem 0 .35rem 0;font-weight:600'>"
+            "<p style='margin:.8rem 0 .35rem 0;font-weight:600;color:#DCE5F2'>"
             + L(f"Sequía hoy: {n_drought} de 9 municipios", f"Drought today: {n_drought} of 9 municipalities") + "</p>"
             + " ".join(ui.dchip(latest.get(m, "None"), f"{ui.mun_short(m)} {latest.get(m, 'None').replace('None', '–')}")
                        for m in sorted(latest.index, key=ui.mun_short)),
@@ -110,7 +109,7 @@ cards = [
 for i, (col, t, x) in enumerate(cards):
     with col.container(key=f"glass_f{i}"):
         st.markdown(f"**{t}**")
-        st.markdown(f'<p style="font-size:.97rem;line-height:1.55;margin-top:.2rem">{x}</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="muted" style="font-size:.95rem;color:#C3D0E4">{x}</p>', unsafe_allow_html=True)
 
 # ---- two groups to act on ---------------------------------------------------------------------
 st.subheader(L("Dos grupos, dos soluciones", "Two groups, two solutions"))
@@ -123,7 +122,7 @@ with g1:
         pct=lambda x: 100 * x.share_nowater)
     sg["txt"] = sg.pct.map(lambda x: f"{x:.0f}%") + "  ·  " + sg.localities.astype(str) + L(" localidades", " localities")
     base = alt.Chart(sg).encode(y=alt.Y("name:N", sort=list(sg.name), title=None,
-                                        axis=alt.Axis(labelLimit=260, labelFontSize=13)))
+                                        axis=alt.Axis(labelLimit=260, labelFontSize=13, labelColor=ui.INK)))
     bars = base.mark_bar(cornerRadiusEnd=6, height=28).encode(
         x=alt.X("pct:Q", title=L("% de todas las viviendas sin agua entubada", "% of all homes without piped water"),
                 scale=alt.Scale(domain=[0, 75])),
@@ -156,7 +155,7 @@ ht = ht.sort_values("vol", ascending=False)
 col1, col2 = st.columns([3, 2], gap="large")
 with col1:
     base = alt.Chart(ht).encode(y=alt.Y("label:N", sort=list(ht.label), title=None,
-                                        axis=alt.Axis(labelLimit=260, labelFontSize=13)))
+                                        axis=alt.Axis(labelLimit=260, labelFontSize=13, labelColor=ui.INK)))
     bars = base.mark_bar(cornerRadiusEnd=6, height=24, color=ui.WATER).encode(
         x=alt.X("vol:Q", title=L("Millones de m³ al año", "Million m³ per year"),
                 scale=alt.Scale(domain=[0, float(ht.vol.max()) * 1.32]),

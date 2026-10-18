@@ -10,10 +10,10 @@ ui.page_title(L("Pregunta a los datos", "Ask the data"),
                 "con sus cifras: nunca inventa números.",
                 "Ask a question in your own words. The assistant picks which of the app's analyses to run and answers "
                 "with their figures: it never makes numbers up."),
-              kicker=L("Asistente de IA", "AI assistant"))
+              kicker="✦ " + L("Asistente de IA", "AI assistant"))
 
 status = (ui.live_pill(L(f"Claude conectado · {assistant.model_name()}", f"Claude connected · {assistant.model_name()}")) if online else
-          '<span class="pill">' + L("Modo sin conexión: análisis integrados", "Offline mode: built-in analyses") + '</span>')
+          '<span class="pill">◌ ' + L("Modo sin conexión: análisis integrados", "Offline mode: built-in analyses") + '</span>')
 st.markdown(status, unsafe_allow_html=True)
 ui.guide([
     (L("Pregunta", "Ask"), L("Una localidad, un municipio, dónde actuar, el modelo, la sequía o el registro.",
@@ -52,12 +52,12 @@ TOOL_LABEL = {
 
 def show_calls(calls):
     if calls:
-        st.markdown('<p class="muted" style="margin:.3rem 0 0 0">' + L("Análisis usados: ", "Analyses used: ")
+        st.markdown('<p class="muted" style="margin:.3rem 0 0 0">✦ ' + L("Análisis usados: ", "Analyses used: ")
                     + " · ".join(dict.fromkeys(TOOL_LABEL.get(n, n) for n, _ in calls)) + "</p>", unsafe_allow_html=True)
 
 
 if not st.session_state.chat:
-    with st.chat_message("assistant", avatar=":material/water_drop:"):
+    with st.chat_message("assistant", avatar="💧"):
         st.markdown(L("Hola. Puedo buscar cualquier localidad, comparar los nueve municipios, decir dónde actuar primero, "
                       "volver a estimar el modelo con otro radio, leer la sequía de hoy o mostrar los errores del registro. "
                       "Elige una pregunta arriba o escribe la tuya.",
@@ -66,22 +66,22 @@ if not st.session_state.chat:
                       "question above or type your own."))
 
 for m in st.session_state.chat:
-    with st.chat_message(m["role"], avatar=":material/person:" if m["role"] == "user" else ":material/water_drop:"):
+    with st.chat_message(m["role"], avatar="🧑" if m["role"] == "user" else "💧"):
         st.markdown(m["content"])
         if m["role"] == "assistant":
             show_calls(m.get("calls"))
 
 if question:
     st.session_state.chat.append({"role": "user", "content": question})
-    with st.chat_message("user", avatar=":material/person:"):
+    with st.chat_message("user", avatar="🧑"):
         st.markdown(question)
-    with st.chat_message("assistant", avatar=":material/water_drop:"):
+    with st.chat_message("assistant", avatar="💧"):
         calls = []
         if online:
             with st.status(L("Pensando…", "Thinking…"), expanded=False) as box:
                 try:
                     hist = [{"role": m["role"], "content": m["content"]} for m in st.session_state.chat[-8:]]
-                    answer, calls = assistant.ask_claude(hist, on_tool=lambda n, a: box.write(f"{TOOL_LABEL.get(n, n)} {a or ''}"))
+                    answer, calls = assistant.ask_claude(hist, on_tool=lambda n, a: box.write(f"✦ {TOOL_LABEL.get(n, n)} {a or ''}"))
                     box.update(label=L("Listo", "Done"), state="complete")
                 except Exception as e:  # noqa: BLE001
                     box.update(label=L("Claude no respondió: respuesta sin conexión", "Claude did not answer: offline answer"), state="error")
