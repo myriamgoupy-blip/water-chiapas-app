@@ -1,0 +1,66 @@
+[theme]
+font = "sans-serif"
+headingFont = "Bricolage Grotesque, sans-serif"
+headingFontWeights = [800, 700, 700, 600, 600, 600]
+baseRadius = "0.75rem"
+buttonRadius = "full"
+showWidgetBorder = true
+metricValueFontWeight = 700
+
+[theme.light]
+primaryColor = "#1565C0"
+backgroundColor = "#F6F8FB"
+secondaryBackgroundColor = "#EAF0F7"
+textColor = "#14213D"
+linkColor = "#1565C0"
+borderColor = "#CBD5E1"
+dataframeHeaderBackgroundColor = "#EAF0F7"
+chartCategoricalColors = ["#1565C0", "#0E9F6E", "#D97706", "#D81B60", "#7C3AED"]
+blueColor = "#1565C0"
+greenColor = "#0E9F6E"
+redColor = "#D81B60"
+orangeColor = "#D97706"
+violetColor = "#7C3AED"
+
+[theme.dark]
+primaryColor = "#4FC3F7"
+backgroundColor = "#0B1324"
+secondaryBackgroundColor = "#16223A"
+textColor = "#EEF3FA"
+linkColor = "#8AD4FF"
+borderColor = "#2E3E5E"
+dataframeHeaderBackgroundColor = "#16223A"
+chartCategoricalColors = ["#4FC3F7", "#34D399", "#FBBF24", "#FF5C9D", "#B9A2FF"]
+blueColor = "#4FC3F7"
+greenColor = "#34D399"
+redColor = "#FF5C9D"
+orangeColor = "#FBBF24"
+violetColor = "#B9A2FF"
+
+[[theme.fontFaces]]
+family = "Bricolage Grotesque"
+url = "app/static/fonts/bricolage-grotesque-latin-500-normal.woff2"
+weight = 500
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Bricolage Grotesque"
+url = "app/static/fonts/bricolage-grotesque-latin-700-normal.woff2"
+weight = 700
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Bricolage Grotesque"
+url = "app/static/fonts/bricolage-grotesque-latin-800-normal.woff2"
+weight = 800
+style = "normal"
+
+[server]
+headless = true
+enableStaticServing = true
+
+[client]
+toolbarMode = "viewer"
+
+[browser]
+gatherUsageStats = false
