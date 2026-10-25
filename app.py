@@ -57,8 +57,8 @@ st.markdown(
     '<div class="footer">' + L(
         "Fuentes: CONAGUA (REPDA, LOCREPDA y Monitor de Sequía), INEGI (Censo 2020), Open-Meteo (ERA5). "
         "Herramienta para la tesis de maestría <i>When Water Flows to the Few</i>, ESCP Business School, 2026. "
-        "Los resultados del modelo son asociaciones, no efectos causales. Modo claro u oscuro: botón junto a ES / EN.",
+        "Los resultados del modelo son asociaciones, no efectos causales.",
         "Sources: CONAGUA (REPDA, LOCREPDA and Drought Monitor), INEGI (2020 Census), Open-Meteo (ERA5). "
         "Tool for the MSc thesis <i>When Water Flows to the Few</i>, ESCP Business School, 2026. "
-        "Model results are associations, not causal effects. Light or dark mode: button next to ES / EN.") + '</div>',
+        "Model results are associations, not causal effects.") + '</div>',
     unsafe_allow_html=True)
