@@ -134,7 +134,8 @@ def tool_model_result(radius_km=2.0, min_inhabitants=100, model="M3"):
             "thesis_reference": {"beta1": THESIS["beta1"], "p_robust": 0.003, "p_conley_10km": 0.056,
                                  "p_cluster_bootstrap": 0.154, "localities": 538},
             "reading": "Negative beta1: localities with more water granted nearby have fewer homes without piped water. "
-                       "Association, not cause."}
+                       "Association, not cause. Statistical support differs by method: in the thesis, significant with robust "
+                       "errors, borderline with Conley errors at 10 km, not significant with the cluster bootstrap."}
 
 
 def tool_drought_status():
@@ -169,7 +170,10 @@ def tool_thesis_facts():
             "official_balance": "Registered groundwater in San Cristóbal is about a third of the official extraction figure: no hidden over-extraction.",
             "model": "OLS with municipality fixed effects on 538 localities; outcome % of homes without piped water; intensity = "
                      "log(1 + m3 granted within 2 km per resident). beta1 = -2.195 (robust p 0.003, Conley 10 km p 0.056, "
-                     "cluster bootstrap p 0.154): consistent but moderate. No difference with the Indigenous share (beta3 p 0.74).",
+                     "cluster bootstrap p 0.154; Conley p is 0.032 at 5 km and 0.044 at 20 km). Negative in every specification; "
+                     "significant with robust errors and with Conley errors at 5 and 20 km, borderline at 10 km, not significant "
+                     "with the wild cluster bootstrap: moderately supported. No significant moderation by the Indigenous share "
+                     "(beta3 = -0.005; p 0.74 robust, 0.77 to 0.80 Conley, 0.80 bootstrap).",
             "segments": "137 localities with at least half of homes without piped water hold 65% of such homes: 85 outside the system "
                         "(no water granted nearby), 52 with water granted nearby that does not reach homes.",
             "data_dates": "REPDA cut-off 30 June 2026; census 2020; thesis results checked on 18 October 2026; the app uses live data."}
@@ -231,10 +235,15 @@ Rules:
 - Use the tools for every number. Never invent or estimate figures; if a tool cannot answer, say so.
 - Write in a plain, professional register: no emojis or decorative symbols.
 - Answer in {lang}. Be concise: at most about 130 words, plain language, short paragraphs or a short list.
-- The model shows associations, not causes. Say so when you discuss the model.
+- The model shows associations, not causes. Say so when you discuss the model, and never say that concessions cause,
+  drive or explain access.
+- When you say how sure a result is, name the method behind each p-value (robust, spatial/Conley, cluster bootstrap).
+  Never say a result holds in every test: in the thesis, beta1 is significant with robust errors and most Conley
+  cut-offs but not with the cluster bootstrap, and the Indigenous share shows no significant moderation.
 - When useful, end with one line telling the user which page of the app to open (Map, Model, Priorities, Drought & rain, Data).
-- Segments: 'outside the formal water system' (no water granted nearby, needs a source and a network) and
-  'water nearby, not reaching homes' (needs a connection to an existing system)."""
+- Segments: 'outside the formal water system' (no water granted nearby; a possible response is a source and a network) and
+  'water nearby, not reaching homes' (a possible response is a connection to an existing system). These responses are
+  proposals from the thesis, not results of the model."""
 
 
 def ask_claude(history, on_tool=None):
@@ -305,12 +314,14 @@ def offline_answer(q):
         r = call("model_result")
         return L(f"Con los ajustes de la tesis ({r['localities']} localidades, 2 km), β1 = **{r['beta1']}**: pasar del percentil 25 al 75 "
                  f"de agua concedida cerca se asocia con **{abs(r['effect_25th_to_75th_percentile_points'])} puntos menos** de viviendas sin "
-                 f"agua entubada (promedio {r['mean_pct_without_water']}%). p robusto {r['p_robust']}, p espacial {r['p_conley_10km']}: "
-                 "constante pero moderado. Es una asociación, no una causa. Abre **Modelo** para probar otros ajustes.",
+                 f"agua entubada (promedio {r['mean_pct_without_water']}%). p robusto {r['p_robust']}, p espacial (10 km) {r['p_conley_10km']}, "
+                 f"p bootstrap en la tesis {r['thesis_reference']['p_cluster_bootstrap']}: el signo es estable, pero el respaldo depende "
+                 "del método y es moderado. Es una asociación, no una causa. Abre **Modelo** para probar otros ajustes.",
                  f"With the thesis settings ({r['localities']} localities, 2 km), β1 = **{r['beta1']}**: going from the 25th to the 75th "
                  f"percentile of water granted nearby goes with **{abs(r['effect_25th_to_75th_percentile_points'])} points fewer** homes "
-                 f"without piped water (average {r['mean_pct_without_water']}%). Robust p {r['p_robust']}, spatial p {r['p_conley_10km']}: "
-                 "consistent but moderate. An association, not a cause. Open **Model** to try other settings."), calls
+                 f"without piped water (average {r['mean_pct_without_water']}%). Robust p {r['p_robust']}, spatial p (10 km) {r['p_conley_10km']}, "
+                 f"bootstrap p in the thesis {r['thesis_reference']['p_cluster_bootstrap']}: the sign is stable, but the support depends "
+                 "on the method and is moderate. An association, not a cause. Open **Model** to try other settings."), calls
     if any(w in nq for w in ["municip", "where", "donde", "least", "most", "worst", "peor", "segment", "group", "grupo"]) and not any(
             w in nq for w in ["priorit", "first", "primero"]):
         r = call("municipality_summary", municipality=mun)

@@ -105,14 +105,14 @@ def municipality_table(k):
 def advice(seg, L):
     """What the thesis segmentation suggests for a locality of this group (Chapter 9)."""
     return {
-        "outside": L("Sin agua concesionada cerca y sin red: la respuesta probable es una fuente nueva y una red, "
+        "outside": L("Sin agua concesionada cerca y sin red: una respuesta posible es una fuente nueva y una red, "
                      "y ayudar a la comunidad a registrar su derecho de agua.",
-                     "No water granted nearby and no network: the likely answer is a new source and a network, "
+                     "No water granted nearby and no network: a possible response is a new source and a network, "
                      "and helping the community register its water right."),
-        "nearby": L("Hay agua concesionada cerca pero no llega a las viviendas: la respuesta probable es conectarse a un "
-                    "sistema existente y revisar los títulos cercanos, normalmente más barato que una fuente nueva.",
-                    "Water is granted nearby but does not reach homes: the likely answer is a connection to an existing "
-                    "system and a review of nearby titles, usually cheaper than a new source."),
+        "nearby": L("Hay agua concesionada cerca pero no llega a las viviendas: una respuesta posible es conectarse a un "
+                    "sistema existente y revisar los títulos cercanos, a menudo más barato que una fuente nueva.",
+                    "Water is granted nearby but does not reach homes: a possible response is a connection to an existing "
+                    "system and a review of nearby titles, often cheaper than a new source."),
         "connected": L("La mayoría de las viviendas ya tiene agua entubada: aquí la prioridad está en la calidad, "
                        "la continuidad del servicio o el drenaje.",
                        "Most homes already have piped water: priorities here are quality, continuity of supply or drainage."),
