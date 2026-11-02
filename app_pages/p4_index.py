@@ -135,12 +135,12 @@ def ranking():
     st.markdown(ui.insight(L(
         f"Con tus pesos, las 20 primeras localidades tienen de {int(t20.POBTOT.min())} a {int(t20.POBTOT.max()):,} habitantes y "
         f"{t20.dep_water.mean():.0f}% de viviendas sin agua en promedio. {int(sg.get('outside', 0))} están fuera del sistema formal "
-        f"(necesitan fuente y red) y {int(sg.get('nearby', 0))} tienen agua concedida cerca que no llega (necesitan conexión). "
+        f"(probablemente necesitan fuente y red) y {int(sg.get('nearby', 0))} tienen agua concedida cerca que no llega (probablemente necesitan conexión). "
         f"Municipio con más prioridades: {munc.index[0]} ({int(munc.iloc[0])}).",
         f"With your weights, the top 20 localities have {int(t20.POBTOT.min())} to {int(t20.POBTOT.max()):,} inhabitants and "
         f"{t20.dep_water.mean():.0f}% of homes without water on average. {int(sg.get('outside', 0))} are outside the formal system "
-        f"(they need a source and a network) and {int(sg.get('nearby', 0))} have water granted nearby that does not arrive (they "
-        f"need a connection). Municipality with the most priorities: {munc.index[0]} ({int(munc.iloc[0])})."),
+        f"(likely needing a source and a network) and {int(sg.get('nearby', 0))} have water granted nearby that does not arrive (likely "
+        f"needing a connection). Municipality with the most priorities: {munc.index[0]} ({int(munc.iloc[0])})."),
         L("Resumen de la lista", "List summary")), unsafe_allow_html=True)
 
     # ------------------------------------------------------------ stability

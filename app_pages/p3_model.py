@@ -93,10 +93,27 @@ def playground():
                  and dv == "dep_water" and mname == "M3")
 
     # ------------------------------------------------------------ result
-    if max(ps) < 0.05:
-        verdict, vcol = L("Sólido en las tres pruebas", "Holds in all three tests"), "#12A578"
-    elif min(ps) < 0.05:
-        verdict, vcol = L("Moderado: significativo en algunas pruebas", "Moderate: significant in some tests"), "#D97706"
+    # Name the methods behind the verdict, so the support of each result is explicit.
+    methods = [(L("errores robustos", "robust errors"), ps[0]),
+               (L(f"errores espaciales ({cut} km)", f"spatial errors ({cut} km)"), ps[1])]
+    if wild:
+        methods.append((L("el bootstrap por municipio", "the cluster bootstrap"), ps[2]))
+    sig = [m for m, p in methods if p < 0.05]
+    nonsig = [m for m, p in methods if p >= 0.05]
+
+    def _join(xs, conj):
+        return xs[0] if len(xs) == 1 else ", ".join(xs[:-1]) + f" {conj} " + xs[-1]
+
+    if not nonsig:
+        verdict = (L("Bien respaldado: significativo con los tres métodos", "Well supported: significant with all three methods")
+                   if wild else
+                   L("Significativo con los dos métodos mostrados (bootstrap no calculado)",
+                     "Significant with both methods shown (bootstrap not run)"))
+        vcol = "#12A578"
+    elif sig:
+        verdict = L(f"Moderado: significativo con {_join(sig, 'y')}, no con {_join(nonsig, 'ni')}",
+                    f"Moderate: significant with {_join(sig, 'and')}, not with {_join(nonsig, 'or')}")
+        vcol = "#D97706"
     elif min(ps) < 0.10:
         verdict, vcol = L("Débil: apenas al límite", "Weak: borderline at best"), "#D97706"
     else:
@@ -105,7 +122,7 @@ def playground():
         r1, r2 = st.columns([2, 3], gap="large", vertical_alignment="center")
         with r1:
             delta = b1 - THESIS["beta1"]
-            st.markdown(f'<p class="muted" style="margin:0">{L("Efecto de la intensidad (β1)", "Effect of intensity (β1)")}</p>'
+            st.markdown(f'<p class="muted" style="margin:0">{L("Coeficiente de la intensidad (β1)", "Coefficient of intensity (β1)")}</p>'
                         f'<div class="big {"water" if b1 < 0 else "homes"}">{b1:+.2f} <span style="font-size:1.1rem">pp</span></div>'
                         f'<p class="muted" style="margin:.2rem 0 0 0">'
                         + (L("Igual que en la tesis", "Same as in the thesis") if abs(delta) < 0.0015
@@ -138,10 +155,13 @@ def playground():
                     f"to the 75th percentile of intensity, {b1 * (q75 - q25):+.1f} percentage points (average {d[dv].mean():.0f}%).")
         if mname == "M3":
             p3 = min(fit.pvalues["int_c:ind_c"], cp["int_c:ind_c"])
-            txt += " " + (L("La relación cambia con la proporción indígena.", "The relationship changes with the Indigenous share.")
+            txt += " " + (L("La relación varía de forma significativa con la proporción indígena (con al menos un método).",
+                            "The relationship differs significantly with the Indigenous share (with at least one method).")
                           if p3 < 0.05 else
-                          L("No cambia con la proporción de hablantes de lengua indígena.",
-                            "It does not change with the share of Indigenous-language speakers."))
+                          L("No hay una diferencia significativa según la proporción de hablantes de lengua indígena: "
+                            "los datos no respaldan un efecto de moderación.",
+                            "There is no significant difference with the share of Indigenous-language speakers: "
+                            "the data do not support a moderation effect."))
         st.markdown(ui.insight(txt, L("Qué significa", "What it means")), unsafe_allow_html=True)
         if is_thesis:
             st.markdown('<p class="muted" style="margin:0">' + L(
@@ -168,10 +188,10 @@ def playground():
         ui.explain(L(
             f"<b>Cómo leerlo:</b> cada punto vuelve a estimar el modelo con otro radio; la banda es el intervalo de 95% con errores "
             f"espaciales ({cut} km) y el círculo magenta es tu radio. Si la curva queda por debajo de cero en todos los radios, el "
-            "resultado no depende de haber elegido 2 km.",
+            "signo del resultado no depende de haber elegido 2 km; la banda muestra en qué radios es significativo.",
             f"<b>How to read it:</b> each point re-estimates the model with another radius; the band is the 95% interval with spatial "
-            f"errors ({cut} km) and the magenta circle is your radius. If the curve stays below zero at every radius, the result does "
-            "not depend on having chosen 2 km."))
+            f"errors ({cut} km) and the magenta circle is your radius. If the curve stays below zero at every radius, the sign of the "
+            "result does not depend on having chosen 2 km; the band shows at which radii it is significant."))
 
     # ------------------------------------------------------------ two views of the data
     g1, g2 = st.columns(2, gap="large")
@@ -206,10 +226,12 @@ def playground():
                 x="indig:Q", y="_y:Q")
             ui.chart(band + zero + line + rug, height=300)
             ui.explain(L(
-                "Línea plana: el efecto es el mismo en localidades más o menos indígenas. Marcas magenta: dónde están las localidades "
-                "(la mayoría por encima de 80%).",
-                "A flat line: the effect is the same in more and less Indigenous localities. Magenta ticks: where the localities "
-                "are (most above 80%)."))
+                "Una línea plana significaría que la asociación es igual en localidades más o menos indígenas. Con los ajustes de la "
+                "tesis, la pendiente no es significativa (β3: p = 0,74 a 0,80): los datos no respaldan un efecto de moderación. "
+                "Marcas magenta: dónde están las localidades (la mayoría por encima de 80%).",
+                "A flat line would mean the association is the same in more and less Indigenous localities. With the thesis "
+                "settings, the slope is not significant (β3: p = 0.74 to 0.80): the data do not support a moderation effect. "
+                "Magenta ticks: where the localities are (most above 80%)."))
         else:
             st.markdown(L("Elige el modelo **+ interacción** para ver esta gráfica.", "Choose the **+ interaction** model to see this chart."))
 
@@ -247,10 +269,10 @@ def playground():
     st.markdown(ui.insight(L(
         f"Las {len(top)} mayores sorpresas son localidades donde el modelo esperaba en promedio {top.predicted.mean():.0f}% de viviendas "
         f"sin agua y hay {top[dv].mean():.0f}%. Son buenos candidatos para una visita: algo que el censo no mide (la red, la fuente, "
-        "la organización local) las deja fuera.",
+        "la organización local) podría explicar la diferencia.",
         f"The {len(top)} biggest surprises are localities where the model expected on average {top.predicted.mean():.0f}% of homes "
         f"without water and there are {top[dv].mean():.0f}%. They are good candidates for a field visit: something the census does not "
-        "measure (the network, the source, local organisation) leaves them out."), L("Análisis de residuos", "Residual analysis")),
+        "measure (the network, the source, local organisation) may explain the gap."), L("Análisis de residuos", "Residual analysis")),
         unsafe_allow_html=True)
 
     # ------------------------------------------------------------ details

@@ -96,16 +96,18 @@ cards = [
         "8 puntos menos de viviendas sin agua entubada (promedio: 27%).",
         f"Across {THESIS['n']} localities, going from little to much water granted within 2 km goes with about "
         "8 points fewer homes without piped water (average: 27%).")),
-    (f2, L("Constante, pero moderado", "Consistent, but moderate"), L(
-        "El signo se mantiene en todas las variantes; su solidez depende de cómo se trate la cercanía entre "
-        "localidades y el número pequeño de municipios. Es una asociación, no una causa.",
-        "The sign holds in every variant; how strong it is depends on how closeness between localities and the "
-        "small number of municipalities are handled. An association, not a cause.")),
+    (f2, L("Mismo signo, respaldo moderado", "Same sign, moderate support"), L(
+        "El vínculo es negativo en todas las variantes. Es significativo con errores robustos y, en la mayoría de "
+        "las distancias, con errores espaciales (Conley), pero no con el bootstrap por municipio, más estricto. "
+        "Es una asociación, no una causa.",
+        "The link is negative in every variant. It is significant with robust errors and, at most distances, with "
+        "spatial (Conley) errors, but not with the stricter cluster bootstrap over municipalities. "
+        "An association, not a cause.")),
     (f3, L("El problema está concentrado", "The problem is concentrated"), L(
         f"{unconn_n} localidades pequeñas concentran {unconn_share_nowater:.0%} de las viviendas sin agua. Se dividen en dos "
-        "grupos que necesitan respuestas distintas.",
+        "grupos que pueden necesitar respuestas distintas.",
         f"{unconn_n} small localities hold {unconn_share_nowater:.0%} of the homes without piped water. They split into two "
-        "groups that need different answers.")),
+        "groups that may need different answers.")),
 ]
 for i, (col, t, x) in enumerate(cards):
     with col.container(key=f"glass_f{i}"):
@@ -113,7 +115,7 @@ for i, (col, t, x) in enumerate(cards):
         st.markdown(f'<p style="font-size:.97rem;line-height:1.55;margin-top:.2rem">{x}</p>', unsafe_allow_html=True)
 
 # ---- two groups to act on ---------------------------------------------------------------------
-st.subheader(L("Dos grupos, dos soluciones", "Two groups, two solutions"))
+st.subheader(L("Dos grupos, dos respuestas posibles", "Two groups, two possible responses"))
 g1, g2 = st.columns([3, 2], gap="large")
 with g1:
     sg = seg.reset_index().assign(
@@ -136,14 +138,14 @@ with g2:
     o, nb = seg.loc["outside"], seg.loc["nearby"]
     st.markdown(ui.insight(L(
         f"<b>Fuera del sistema</b> ({int(o.localities)} localidades): casi no hay agua concedida cerca (mediana {o.median_vol_pc:.0f} m³ por "
-        "habitante). Necesitan una fuente, una red y registrar su derecho de agua.<br><br>"
+        "habitante). Probablemente necesitan una fuente, una red y registrar su derecho de agua.<br><br>"
         f"<b>Agua cerca que no llega</b> ({int(nb.localities)} localidades): hay más agua concedida cerca que en la localidad típica "
-        f"(mediana {nb.median_vol_pc:.0f} m³), pero no llega a las viviendas. Necesitan una conexión a un sistema existente.",
+        f"(mediana {nb.median_vol_pc:.0f} m³), pero no llega a las viviendas. Probablemente necesitan una conexión a un sistema existente.",
         f"<b>Outside the system</b> ({int(o.localities)} localities): almost no water is granted nearby (median {o.median_vol_pc:.0f} m³ per "
-        "resident). They need a source, a network and a registered water right.<br><br>"
+        "resident). They would likely need a source, a network and a registered water right.<br><br>"
         f"<b>Water nearby, not reaching homes</b> ({int(nb.localities)} localities): more water is granted nearby than in the typical "
-        f"locality (median {nb.median_vol_pc:.0f} m³), but it does not reach homes. They need a connection to an existing system."),
-        L("Segmentación del modelo", "Model segmentation")), unsafe_allow_html=True)
+        f"locality (median {nb.median_vol_pc:.0f} m³), but it does not reach homes. They would likely need a connection to an existing system."),
+        L("Agrupación descriptiva", "Descriptive grouping")), unsafe_allow_html=True)
 
 # ---- who holds it ----------------------------------------------------------------------
 st.subheader(L("¿Quién concentra el agua?", "Who holds the water?"))
